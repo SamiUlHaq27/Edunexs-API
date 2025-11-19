@@ -238,7 +238,7 @@ export class InstitutionService {
           const htmlContent = template({
             institutionName: institution.name,
             institutionPrefix: institution.prefix,
-            ownerEmail: institution.owner.username,
+            ownerEmail: institution.owner.email,
             reason: message,
             message: message,
           });
@@ -250,8 +250,8 @@ export class InstitutionService {
           await this.brevoService.sendEmail({
             to: [
               {
-                email: institution.owner.username,
-                name: institution.owner.name || institution.owner.username,
+                email: institution.owner.email,
+                name: institution.owner.name || institution.owner.email,
               },
             ],
             subject,

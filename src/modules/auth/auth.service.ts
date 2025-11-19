@@ -115,7 +115,7 @@ export class AuthService {
 
     // Check if user already exists
     const existingUser = await this.authRepository.findOne({
-      where: { username: email },
+      where: { email: email },
     });
 
     if (existingUser) {
@@ -127,7 +127,7 @@ export class AuthService {
 
     // Create new user with institution_owner role by default
     const newUser = this.authRepository.create({
-      username: email,
+      email: email,
       password: hashedPassword,
       name,
       profilePictureUrl,
@@ -145,15 +145,15 @@ export class AuthService {
       // Send welcome email
       try {
         const welcomeHtml = this.getWelcomeEmailTemplate(
-          savedUser.name || savedUser.username,
-          savedUser.username,
-          savedUser.username,
+          savedUser.name || savedUser.email,
+          savedUser.email,
+          savedUser.email,
         );
         await this.brevoService.sendEmail({
           to: [
             {
-              email: savedUser.username,
-              name: savedUser.name || savedUser.username,
+              email: savedUser.email,
+              name: savedUser.name || savedUser.email,
             },
           ],
           subject: 'Welcome to Edunexs! 🎓',
@@ -167,7 +167,7 @@ export class AuthService {
       // Generate JWT token
       const payload: UserData = {
         authId: savedUser.id,
-        username: savedUser.username,
+        username: savedUser.email,
         role: savedUser.role,
       };
 
@@ -177,7 +177,7 @@ export class AuthService {
         accessToken,
         user: {
           id: savedUser?.id,
-          username: savedUser?.username,
+          username: savedUser?.email,
           name: savedUser?.name,
           profilePictureUrl: savedUser?.profilePictureUrl,
           role: savedUser?.role,
@@ -200,12 +200,9 @@ export class AuthService {
       );
     }
 
-    // Use email as username if username is not provided
-    const usernameToSearch = username || email;
-
     // Find user
     const user = await this.authRepository.findOne({
-      where: { username: usernameToSearch },
+      where: { ...(username && { username }), ...(email && { email }) },
     });
 
     if (!user) {
@@ -226,7 +223,7 @@ export class AuthService {
     // Generate JWT token
     const payload: UserData = {
       authId: user.id,
-      username: user.username,
+      username: user.email,
       role: user.role,
     };
 
@@ -236,7 +233,7 @@ export class AuthService {
       accessToken,
       user: {
         id: user?.id,
-        username: user?.username,
+        username: user?.email,
         name: user?.name,
         profilePictureUrl: user?.profilePictureUrl,
         role: user?.role,
@@ -273,7 +270,7 @@ export class AuthService {
 
     // Find user
     const user = await this.authRepository.findOne({
-      where: { username: email },
+      where: { email: email },
     });
 
     if (!user) {
@@ -302,7 +299,7 @@ export class AuthService {
 
     // Check if email already exists in auth entity
     const existingUser = await this.authRepository.findOne({
-      where: { username: email },
+      where: { email: email },
     });
 
     // For SIGNUP type, email should not exist
