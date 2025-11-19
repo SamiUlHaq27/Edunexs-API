@@ -9,7 +9,11 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, FindOptionsWhere } from 'typeorm';
 import { InstitutionEntity } from 'src/database/entities';
-import { CreateInstitutionDto, UpdateInstitutionStatusDto } from './dtos';
+import {
+  CreateInstitutionDto,
+  UpdateInstitutionDto,
+  UpdateInstitutionStatusDto,
+} from './dtos';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
 import { BrevoService } from 'src/shared/services/brevo.service';
 import { readFileSync } from 'fs';
@@ -26,13 +30,14 @@ export class InstitutionService {
     private readonly brevoService: BrevoService,
   ) {}
 
-  async create(createInstitutionDto: CreateInstitutionDto, ownerId: number) {
+  async create(createInstitutionDto: CreateInstitutionDto, authId: number) {
     const { prefix, name, city, country, address, logoUrl } =
       createInstitutionDto;
 
     // Check if owner already has an institution
     const ownerInstitution = await this.institutionRepository.findOne({
-      where: { ownerId },
+      where: { owner: { id: authId } },
+      relations: ['owner'],
     });
 
     if (ownerInstitution) {
@@ -60,7 +65,7 @@ export class InstitutionService {
       country,
       address,
       logoUrl,
-      ownerId,
+      owner: { id: authId },
     });
 
     try {
@@ -74,7 +79,6 @@ export class InstitutionService {
         country: savedInstitution?.country,
         address: savedInstitution?.address,
         logoUrl: savedInstitution?.logoUrl,
-        ownerId: savedInstitution?.ownerId,
         createdAt: savedInstitution?.createdAt,
       };
     } catch {
@@ -100,7 +104,6 @@ export class InstitutionService {
       'country',
       'address',
       'logoUrl',
-      'ownerId',
     ];
 
     // Build where clause based on filters
@@ -126,14 +129,7 @@ export class InstitutionService {
             }
           } else if (allowedAttributes.includes(key)) {
             // Narrow and coerce types to avoid unsafe `any` assignment
-            if (k === 'ownerId') {
-              const ownerId = typeof value === 'number' ? value : Number(value);
-              if (!Number.isNaN(ownerId)) {
-                where[k] = ownerId;
-              }
-            } else {
-              where[k as keyof typeof allowedAttributes] = String(value);
-            }
+            where[k as keyof typeof allowedAttributes] = String(value);
           }
         }
       }
@@ -156,9 +152,10 @@ export class InstitutionService {
     };
   }
 
-  async findByOwnerId(ownerId: number) {
+  async findByOwnerId(authId: number) {
     const institution = await this.institutionRepository.findOne({
-      where: { ownerId },
+      where: { owner: { id: authId } },
+      relations: ['owner'],
     });
 
     if (!institution) {
@@ -166,6 +163,36 @@ export class InstitutionService {
     }
 
     return institution;
+  }
+
+  async update(authId: number, updateInstitutionDto: UpdateInstitutionDto) {
+    const institution = await this.institutionRepository.findOne({
+      where: { owner: { id: authId } },
+    });
+
+    if (!institution) {
+      throw new NotFoundException('Institution not found');
+    }
+
+    // Check if prefix is being updated and if it already exists
+    if (
+      updateInstitutionDto?.prefix &&
+      updateInstitutionDto?.prefix !== institution?.prefix
+    ) {
+      const existingInstitution = await this.institutionRepository.findOne({
+        where: { prefix: updateInstitutionDto.prefix },
+      });
+
+      if (existingInstitution) {
+        throw new ConflictException(
+          'Institution with this prefix already exists',
+        );
+      }
+    }
+
+    // Update only the provided fields
+    Object.assign(institution, updateInstitutionDto);
+    return await this.institutionRepository.save(institution);
   }
 
   async updateStatus(updateStatusDto: UpdateInstitutionStatusDto) {

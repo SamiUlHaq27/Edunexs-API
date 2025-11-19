@@ -30,9 +30,6 @@ export class InstitutionEntity {
   @Column({ nullable: true })
   logoUrl: string;
 
-  @Column({ unique: true })
-  ownerId: number;
-
   @Column({ default: false })
   isBlocked: boolean;
 

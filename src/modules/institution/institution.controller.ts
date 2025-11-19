@@ -1,10 +1,14 @@
-import { Body, Controller, Get, Post, Req, Version } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Version } from '@nestjs/common';
 import { InstitutionService } from './institution.service';
-import { CreateInstitutionDto, UpdateInstitutionStatusDto } from './dtos';
+import {
+  CreateInstitutionDto,
+  UpdateInstitutionDto,
+  UpdateInstitutionStatusDto,
+} from './dtos';
 import { AllowedRoles } from 'src/shared/reflectors';
 import { UserRoleEnum } from 'src/shared/enums';
-import type { AppRequest } from 'src/shared/types';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
+import { User } from 'src/shared/pipes';
 
 @Controller('institution')
 export class InstitutionController {
@@ -15,12 +19,9 @@ export class InstitutionController {
   @Post()
   async create(
     @Body() createInstitutionDto: CreateInstitutionDto,
-    @Req() req: AppRequest,
+    @User('authId') authId: number,
   ) {
-    return this.institutionService.create(
-      createInstitutionDto,
-      req.user.authId,
-    );
+    return this.institutionService.create(createInstitutionDto, authId);
   }
 
   @Version('1')
@@ -46,7 +47,17 @@ export class InstitutionController {
   @Version('1')
   @AllowedRoles([UserRoleEnum.INSITUTION_OWNER])
   @Get('my-institution')
-  async getMyInstitution(@Req() req: AppRequest) {
-    return await this.institutionService.findByOwnerId(req.user.authId);
+  async getMyInstitution(@User('authId') authId: number) {
+    return await this.institutionService.findByOwnerId(authId);
+  }
+
+  @Version('1')
+  @AllowedRoles([UserRoleEnum.INSITUTION_OWNER])
+  @Put()
+  async update(
+    @Body() updateInstitutionDto: UpdateInstitutionDto,
+    @User('authId') authId: number,
+  ) {
+    return await this.institutionService.update(authId, updateInstitutionDto);
   }
 }
