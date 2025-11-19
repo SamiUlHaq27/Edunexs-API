@@ -13,7 +13,10 @@ export class AuthEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ nullable: true, unique: true })
+  email: string;
+
+  @Column({ nullable: true, unique: true })
   username: string;
 
   @Column()
