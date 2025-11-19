@@ -5,9 +5,10 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between } from 'typeorm';
 import { InstitutionEntity } from 'src/database/entities';
 import { CreateInstitutionDto } from './dtos';
+import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
 
 @Injectable()
 export class InstitutionService {
@@ -76,6 +77,64 @@ export class InstitutionService {
     return await this.institutionRepository.find({
       order: { createdAt: 'DESC' },
     });
+  }
+
+  async findAllForAdmin(listFiltersDto: ListFiltersDto) {
+    const { page, size, filters } = listFiltersDto;
+    const skip = (page - 1) * size;
+
+    // Define allowed institution attributes for filtering
+    const allowedAttributes = [
+      'prefix',
+      'name',
+      'city',
+      'country',
+      'address',
+      'logoUrl',
+      'ownerId',
+    ];
+
+    // Build where clause based on filters
+    const where: Record<string, any> = {};
+
+    if (filters && Object.keys(filters).length > 0) {
+      for (const [key, value] of Object.entries(filters)) {
+        if (value !== undefined && value !== null) {
+          // Handle createdAt with Between operator for date range
+          if (key === 'createdAt' && typeof value === 'object') {
+            const dateFilter = value as { start?: string; end?: string };
+            if (dateFilter.start && dateFilter.end) {
+              where[key] = Between(
+                new Date(dateFilter.start),
+                new Date(dateFilter.end),
+              );
+            } else if (dateFilter.start) {
+              where[key] = Between(new Date(dateFilter.start), new Date());
+            } else if (dateFilter.end) {
+              where[key] = Between(new Date(0), new Date(dateFilter.end));
+            }
+          } else if (allowedAttributes.includes(key)) {
+            where[key] = value;
+          }
+        }
+      }
+    }
+
+    const [data, total] = await this.institutionRepository.findAndCount({
+      where,
+      relations: ['owner'],
+      skip,
+      take: size,
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      data,
+      total,
+      page,
+      size,
+      totalPages: Math.ceil(total / size),
+    };
   }
 
   async findOne(prefix: string) {
