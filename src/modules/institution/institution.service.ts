@@ -156,10 +156,16 @@ export class InstitutionService {
     };
   }
 
-  async findOne(prefix: string) {
-    return await this.institutionRepository.findOne({
-      where: { prefix },
+  async findByOwnerId(ownerId: number) {
+    const institution = await this.institutionRepository.findOne({
+      where: { ownerId },
     });
+
+    if (!institution) {
+      throw new NotFoundException('Institution not found');
+    }
+
+    return institution;
   }
 
   async updateStatus(updateStatusDto: UpdateInstitutionStatusDto) {

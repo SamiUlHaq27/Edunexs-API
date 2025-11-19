@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  Req,
-  Version,
-} from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Version } from '@nestjs/common';
 import { InstitutionService } from './institution.service';
 import { CreateInstitutionDto, UpdateInstitutionStatusDto } from './dtos';
 import { AllowedRoles } from 'src/shared/reflectors';
@@ -52,8 +44,9 @@ export class InstitutionController {
   }
 
   @Version('1')
-  @Get(':prefix')
-  async findOne(@Param('prefix') prefix: string) {
-    return this.institutionService.findOne(prefix);
+  @AllowedRoles([UserRoleEnum.INSITUTION_OWNER])
+  @Get('my-institution')
+  async getMyInstitution(@Req() req: AppRequest) {
+    return await this.institutionService.findByOwnerId(req.user.authId);
   }
 }

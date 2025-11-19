@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { TransactionalEmailsApi, SendSmtpEmail } from '@getbrevo/brevo';
 import { getSecretValue } from 'src/config/secret.config';
 import { EmailOptions } from '../interfaces';
 
 @Injectable()
 export class BrevoService {
+  private logger = new Logger(this.constructor.name);
   private apiInstance: TransactionalEmailsApi;
   private defaultSender: { name: string; email: string };
 
@@ -48,11 +49,13 @@ export class BrevoService {
 
     try {
       const data = await this.apiInstance.sendTransacEmail(sendSmtpEmail);
-      console.log('Email sent successfully');
+      this.logger.log(
+        `Email sent successfully to ${JSON.stringify(options?.to)}: ${options?.subject}`,
+      );
       return data;
     } catch (e) {
-      console.error(
-        'Failed to send email:',
+      this.logger.error(
+        `Failed to send email to ${JSON.stringify(options?.to)}: ${options?.subject}`,
         e instanceof Error ? e?.message : '',
       );
       throw e;
