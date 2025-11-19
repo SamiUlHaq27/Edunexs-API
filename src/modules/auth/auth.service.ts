@@ -16,7 +16,7 @@ import {
   OtpTypeEnum,
 } from 'src/database/entities/otp.entity';
 import { UserRoleEnum } from 'src/shared/enums';
-import { SignupDto, LoginDto } from './dtos';
+import { SignupDto, LoginDto, ResetPasswordDto } from './dtos';
 import { createHash, randomInt } from 'crypto';
 import { UserData } from 'src/shared/types';
 import { BrevoService } from 'src/shared/services/brevo.service';
@@ -52,6 +52,19 @@ export class AuthService {
       'shared',
       'emails',
       'signup_otp.template.html',
+    );
+    const templateSource = readFileSync(templatePath, 'utf-8');
+    const template = Handlebars.compile(templateSource);
+    return template({ name, otp });
+  }
+
+  private getResetPasswordEmailTemplate(name: string, otp: string): string {
+    const templatePath = join(
+      process.cwd(),
+      'src',
+      'shared',
+      'emails',
+      'reset_password_otp.template.html',
     );
     const templateSource = readFileSync(templatePath, 'utf-8');
     const template = Handlebars.compile(templateSource);
@@ -233,14 +246,73 @@ export class AuthService {
     };
   }
 
-  async sendOtp(email: string) {
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    const { email, otp, newPassword } = resetPasswordDto;
+
+    // Verify OTP
+    const otpRecord = await this.otpRepository.findOne({
+      where: {
+        email,
+        otp,
+        type: OtpTypeEnum.PASSWORD_RESET,
+        status: OtpStatusEnum.PENDING,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!otpRecord) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    // Check if OTP has expired
+    if (otpRecord?.expiresAt && new Date() > otpRecord.expiresAt) {
+      otpRecord.status = OtpStatusEnum.EXPIRED;
+      await this.otpRepository.save(otpRecord);
+      throw new BadRequestException('OTP has expired');
+    }
+
+    // Find user
+    const user = await this.authRepository.findOne({
+      where: { username: email },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    // Hash new password
+    const hashedPassword = this.hashPassword(newPassword);
+
+    // Update password
+    user.password = hashedPassword;
+    await this.authRepository.save(user);
+
+    // Mark OTP as verified
+    otpRecord.status = OtpStatusEnum.VERIFIED;
+    await this.otpRepository.save(otpRecord);
+
+    return {
+      success: true,
+      message: 'Password reset successfully',
+    };
+  }
+
+  async sendOtp(sendOtpDto: { email: string; type?: OtpTypeEnum }) {
+    const { email, type = OtpTypeEnum.SIGNUP } = sendOtpDto;
+
     // Check if email already exists in auth entity
     const existingUser = await this.authRepository.findOne({
       where: { username: email },
     });
 
-    if (existingUser) {
+    // For SIGNUP type, email should not exist
+    if (type === OtpTypeEnum.SIGNUP && existingUser) {
       throw new ConflictException('Email already used with another account');
+    }
+
+    // For PASSWORD_RESET type, email must exist
+    if (type === OtpTypeEnum.PASSWORD_RESET && !existingUser) {
+      throw new BadRequestException('No account found with this email');
     }
 
     const name = email.split('@')[0];
@@ -253,21 +325,29 @@ export class AuthService {
     const otpRecord = this.otpRepository.create({
       email,
       otp,
-      type: OtpTypeEnum.SIGNUP,
+      type,
       status: OtpStatusEnum.PENDING,
       expiresAt,
     });
 
     await this.otpRepository.save(otpRecord);
 
-    // Get email template
-    const htmlContent = this.getEmailTemplate(name, otp);
+    // Get email template and subject based on type
+    const htmlContent =
+      type === OtpTypeEnum.PASSWORD_RESET
+        ? this.getResetPasswordEmailTemplate(name, otp)
+        : this.getEmailTemplate(name, otp);
+
+    const subject =
+      type === OtpTypeEnum.PASSWORD_RESET
+        ? 'Reset Your Password - Edunexs'
+        : 'Verify Your Email - Edunexs';
 
     // Send email via Brevo
     try {
       await this.brevoService.sendEmail({
         to: [{ email, name }],
-        subject: 'Verify Your Email - Edunexs',
+        subject,
         htmlContent,
       });
 
