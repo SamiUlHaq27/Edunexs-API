@@ -22,6 +22,7 @@ import { UserData } from 'src/shared/types';
 import { BrevoService } from 'src/shared/services/brevo.service';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import * as Handlebars from 'handlebars';
 
 @Injectable()
 export class AuthService {
@@ -52,8 +53,9 @@ export class AuthService {
       'emails',
       'signup_otp.template.html',
     );
-    const template = readFileSync(templatePath, 'utf-8');
-    return template.replace('{{name}}', name).replace('{{otp}}', otp);
+    const templateSource = readFileSync(templatePath, 'utf-8');
+    const template = Handlebars.compile(templateSource);
+    return template({ name, otp });
   }
 
   private getWelcomeEmailTemplate(
@@ -68,11 +70,9 @@ export class AuthService {
       'emails',
       'welcome.template.html',
     );
-    const template = readFileSync(templatePath, 'utf-8');
-    return template
-      .replace(/{{name}}/g, name)
-      .replace(/{{email}}/g, email)
-      .replace(/{{username}}/g, username);
+    const templateSource = readFileSync(templatePath, 'utf-8');
+    const template = Handlebars.compile(templateSource);
+    return template({ name, email, username });
   }
 
   async signup(signupDto: SignupDto) {

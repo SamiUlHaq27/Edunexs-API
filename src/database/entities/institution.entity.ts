@@ -33,6 +33,9 @@ export class InstitutionEntity {
   @Column({ unique: true })
   ownerId: number;
 
+  @Column({ default: false })
+  isBlocked: boolean;
+
   @OneToOne(() => AuthEntity)
   @JoinColumn({ name: 'ownerId' })
   owner: AuthEntity;
