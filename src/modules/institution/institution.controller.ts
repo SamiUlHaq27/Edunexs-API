@@ -8,7 +8,7 @@ import {
   Version,
 } from '@nestjs/common';
 import { InstitutionService } from './institution.service';
-import { CreateInstitutionDto } from './dto';
+import { CreateInstitutionDto } from './dtos';
 import { AllowedRoles } from 'src/shared/reflectors';
 import { UserRoleEnum } from 'src/shared/enums';
 import type { AppRequest } from 'src/shared/types';

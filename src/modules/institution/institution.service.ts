@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { InstitutionEntity } from 'src/database/entities';
-import { CreateInstitutionDto } from './dto';
+import { CreateInstitutionDto } from './dtos';
 
 @Injectable()
 export class InstitutionService {
@@ -58,14 +58,14 @@ export class InstitutionService {
         await this.institutionRepository.save(newInstitution);
 
       return {
-        prefix: savedInstitution.prefix,
-        name: savedInstitution.name,
-        city: savedInstitution.city,
-        country: savedInstitution.country,
-        address: savedInstitution.address,
-        logoUrl: savedInstitution.logoUrl,
-        ownerId: savedInstitution.ownerId,
-        createdAt: savedInstitution.createdAt,
+        prefix: savedInstitution?.prefix,
+        name: savedInstitution?.name,
+        city: savedInstitution?.city,
+        country: savedInstitution?.country,
+        address: savedInstitution?.address,
+        logoUrl: savedInstitution?.logoUrl,
+        ownerId: savedInstitution?.ownerId,
+        createdAt: savedInstitution?.createdAt,
       };
     } catch {
       throw new InternalServerErrorException('Failed to create institution');

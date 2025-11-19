@@ -5,6 +5,7 @@ import {
   IsUrl,
   MinLength,
   MaxLength,
+  Length,
 } from 'class-validator';
 
 export class SignupDto {
@@ -26,4 +27,8 @@ export class SignupDto {
   @MinLength(6)
   @MaxLength(30)
   password: string;
+
+  @IsString()
+  @Length(6, 6)
+  otp: string;
 }

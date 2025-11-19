@@ -15,7 +15,13 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(JwtAuthMiddleware)
-      .exclude('/v1/auth/signup', '/v1/auth/login', '/')
-      .forRoutes('*');
+      .exclude(
+        '/v1/auth/signup',
+        '/v1/auth/login',
+        '/v1/auth/send-otp',
+        '/v1/auth/verify-otp',
+        '/',
+      )
+      .forRoutes('*path');
   }
 }

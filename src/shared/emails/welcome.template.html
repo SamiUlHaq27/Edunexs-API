@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to Edunexs</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', Arial, sans-serif;
+        background-color: #f4f7fa;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      .email-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 50px 30px;
+        text-align: center;
+      }
+      .logo {
+        width: 120px;
+        height: 120px;
+        margin-bottom: 25px;
+        border-radius: 20px;
+        background-color: white;
+        padding: 15px;
+      }
+      .header h1 {
+        color: #ffffff;
+        font-size: 32px;
+        font-weight: 700;
+        margin: 0;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .header p {
+        color: rgba(255, 255, 255, 0.95);
+        font-size: 18px;
+        margin-top: 10px;
+      }
+      .content {
+        padding: 40px 30px;
+        color: #333333;
+      }
+      .greeting {
+        font-size: 24px;
+        color: #667eea;
+        margin-bottom: 20px;
+        font-weight: 600;
+      }
+      .message {
+        font-size: 16px;
+        color: #666666;
+        margin-bottom: 25px;
+        line-height: 1.8;
+      }
+      .features {
+        background: linear-gradient(135deg, #667eea08 0%, #764ba208 100%);
+        border-radius: 12px;
+        padding: 30px;
+        margin: 30px 0;
+      }
+      .features h2 {
+        color: #333333;
+        font-size: 20px;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+      .feature-list {
+        list-style: none;
+        padding: 0;
+      }
+      .feature-item {
+        padding: 15px 0;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        align-items: flex-start;
+      }
+      .feature-item:last-child {
+        border-bottom: none;
+      }
+      .feature-icon {
+        font-size: 24px;
+        margin-right: 15px;
+        flex-shrink: 0;
+      }
+      .feature-text {
+        flex: 1;
+      }
+      .feature-title {
+        font-weight: 600;
+        color: #333333;
+        margin-bottom: 5px;
+      }
+      .feature-description {
+        color: #666666;
+        font-size: 14px;
+      }
+      .cta-section {
+        text-align: center;
+        margin: 35px 0;
+      }
+      .cta-button {
+        display: inline-block;
+        padding: 16px 40px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #ffffff;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 16px;
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s;
+        box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+      }
+      .cta-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+      }
+      .info-box {
+        background-color: #f8f9fa;
+        border-left: 4px solid #667eea;
+        padding: 20px;
+        margin: 25px 0;
+        border-radius: 4px;
+      }
+      .info-box p {
+        margin: 0;
+        color: #666666;
+        font-size: 14px;
+      }
+      .info-box strong {
+        color: #333333;
+      }
+      .divider {
+        height: 1px;
+        background: linear-gradient(
+          to right,
+          transparent,
+          #e9ecef,
+          transparent
+        );
+        margin: 30px 0;
+      }
+      .footer {
+        background-color: #f8f9fa;
+        padding: 30px;
+        text-align: center;
+        border-top: 1px solid #e9ecef;
+      }
+      .footer-text {
+        font-size: 14px;
+        color: #666666;
+        margin-bottom: 15px;
+      }
+      .social-links {
+        margin: 20px 0;
+      }
+      .social-links a {
+        display: inline-block;
+        margin: 0 10px;
+        color: #667eea;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+      }
+      .social-links a:hover {
+        color: #764ba2;
+      }
+      .copyright {
+        font-size: 12px;
+        color: #999999;
+        margin-top: 20px;
+      }
+      @media only screen and (max-width: 600px) {
+        .email-container {
+          border-radius: 0;
+        }
+        .content {
+          padding: 30px 20px;
+        }
+        .header {
+          padding: 40px 20px;
+        }
+        .header h1 {
+          font-size: 26px;
+        }
+        .greeting {
+          font-size: 20px;
+        }
+        .features {
+          padding: 20px;
+        }
+        .cta-button {
+          padding: 14px 30px;
+          font-size: 15px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="email-container">
+      <!-- Header -->
+      <div class="header">
+        <img
+          src="https://edunexs.dev/assets/edunexs-logo-540x540-BQSUdYoI.png"
+          alt="Edunexs Logo"
+          class="logo"
+        />
+        <h1>Welcome to Edunexs!</h1>
+        <p>Your Learning Journey Begins Here</p>
+      </div>
+
+      <!-- Content -->
+      <div class="content">
+        <p class="greeting">Hello {{name}}! 👋</p>
+
+        <p class="message">
+          We're thrilled to have you join the <strong>Edunexs</strong> family!
+          Your account has been successfully created, and you're now part of a
+          vibrant learning community dedicated to empowering education and
+          enabling success.
+        </p>
+
+        <p class="message">
+          As an institution owner, you now have access to powerful tools to
+          create and manage your educational institution, engage with students,
+          and deliver exceptional learning experiences.
+        </p>
+
+        <!-- Features Section -->
+        <div class="features">
+          <h2>🚀 Get Started with These Features</h2>
+          <ul class="feature-list">
+            <li class="feature-item">
+              <span class="feature-icon">🏫</span>
+              <div class="feature-text">
+                <div class="feature-title">Create Your Institution</div>
+                <div class="feature-description">
+                  Set up your institution profile with custom branding and
+                  information
+                </div>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">📚</span>
+              <div class="feature-text">
+                <div class="feature-title">Course Management</div>
+                <div class="feature-description">
+                  Design and organize courses, modules, and learning materials
+                </div>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">👥</span>
+              <div class="feature-text">
+                <div class="feature-title">Student Engagement</div>
+                <div class="feature-description">
+                  Connect with students and track their learning progress
+                </div>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">📊</span>
+              <div class="feature-text">
+                <div class="feature-title">Analytics & Reports</div>
+                <div class="feature-description">
+                  Monitor performance with comprehensive analytics dashboards
+                </div>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <!-- CTA Section -->
+        <div class="cta-section">
+          <a href="https://edunexs.dev/dashboard" class="cta-button">
+            Go to Dashboard
+          </a>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Account Info -->
+        <div class="info-box">
+          <p>
+            <strong>📧 Your Account Details:</strong><br />
+            Email: <strong>{{email}}</strong><br />
+            Username: <strong>{{username}}</strong><br />
+            Role: <strong>Institution Owner</strong>
+          </p>
+        </div>
+
+        <p class="message">
+          Need help getting started? Our comprehensive documentation and support
+          team are here to guide you every step of the way. Don't hesitate to
+          reach out if you have any questions.
+        </p>
+
+        <p class="message">
+          Thank you for choosing Edunexs. Together, let's create amazing
+          learning experiences! 🎓
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer">
+        <p class="footer-text">
+          <strong>Edunexs</strong> - Empowering Education, Enabling Success
+        </p>
+
+        <div class="social-links">
+          <a href="https://edunexs.dev">Visit Website</a> •
+          <a href="https://edunexs.dev/docs">Documentation</a> •
+          <a href="mailto:support@edunexs.dev">Contact Support</a>
+        </div>
+
+        <p class="copyright">
+          © 2025 Edunexs. All rights reserved.<br />
+          This is an automated message, please do not reply to this email.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
