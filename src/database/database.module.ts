@@ -1,7 +1,7 @@
 import { Module, Global } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { getSecretValue } from 'src/config/secret.config';
-import { AuthEntity, InstitutionEntity } from './entities';
+import { AuthEntity, InstitutionEntity, FileEntity } from './entities';
 import { OtpEntity } from './entities/otp.entity';
 
 @Global()
@@ -15,7 +15,7 @@ import { OtpEntity } from './entities/otp.entity';
         username: getSecretValue('DB_USER'),
         password: getSecretValue('DB_PASSWORD'),
         database: getSecretValue('DB_NAME'),
-        entities: [AuthEntity, InstitutionEntity, OtpEntity],
+        entities: [AuthEntity, InstitutionEntity, OtpEntity, FileEntity],
         synchronize: false,
       }),
     }),

@@ -1,8 +1,6 @@
 import {
   IsEmail,
-  IsOptional,
   IsString,
-  IsUrl,
   MinLength,
   MaxLength,
   Length,
@@ -11,17 +9,12 @@ import {
 export class SignupDto {
   @IsEmail()
   @MaxLength(50)
-  email?: string;
+  email: string;
 
   @IsString()
   @MinLength(2)
   @MaxLength(50)
   name: string;
-
-  @IsOptional()
-  @IsUrl()
-  @MaxLength(255)
-  profilePictureUrl?: string;
 
   @IsString()
   @MinLength(6)

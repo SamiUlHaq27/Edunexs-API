@@ -34,9 +34,4 @@ export class CreateInstitutionDto {
   @IsString()
   @MaxLength(200)
   address: string;
-
-  @IsOptional()
-  @IsUrl()
-  @MaxLength(2048)
-  logoUrl?: string;
 }

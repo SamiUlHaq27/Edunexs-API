@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Post, Put, Version } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Version,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { InstitutionService } from './institution.service';
 import {
   CreateInstitutionDto,
@@ -59,5 +70,24 @@ export class InstitutionController {
     @User('authId') authId: number,
   ) {
     return await this.institutionService.update(authId, updateInstitutionDto);
+  }
+
+  @Version('1')
+  @AllowedRoles([UserRoleEnum.INSITUTION_OWNER])
+  @Post('upload-logo')
+  @UseInterceptors(
+    FileInterceptor('logoFile', {
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    }),
+  )
+  async uploadLogo(
+    @UploadedFile() logoFile: Express.Multer.File,
+    @User('authId') authId: number,
+  ) {
+    if (!logoFile) {
+      throw new BadRequestException('No file provided');
+    }
+
+    return this.institutionService.uploadLogo(authId, logoFile);
   }
 }
