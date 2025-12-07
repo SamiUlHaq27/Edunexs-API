@@ -15,6 +15,8 @@ import { OtpEntity } from './entities/otp.entity';
         username: getSecretValue('DB_USER'),
         password: getSecretValue('DB_PASSWORD'),
         database: getSecretValue('DB_NAME'),
+        ssl: true,
+        extra: { ssl: { rejectUnauthorized: false } },
         entities: [AuthEntity, InstitutionEntity, OtpEntity, FileEntity],
         synchronize: false,
       }),
