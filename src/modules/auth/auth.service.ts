@@ -19,8 +19,9 @@ import {
 } from 'src/database/entities/otp.entity';
 import { UserRoleEnum } from 'src/shared/enums';
 import { SignupDto, LoginDto, ResetPasswordDto, UploadFileDto } from './dtos';
-import { createHash, randomInt } from 'crypto';
+import { randomInt } from 'crypto';
 import { UserData } from 'src/shared/types';
+import { hashPassword } from 'src/shared/helpers';
 import { BrevoService } from 'src/shared/services/brevo.service';
 import { AppwriteStorageService } from 'src/shared/services/appwrite-storage.service';
 import { readFileSync } from 'fs';
@@ -42,10 +43,6 @@ export class AuthService {
     private readonly brevoService: BrevoService,
     private readonly appwriteStorageService: AppwriteStorageService,
   ) {}
-
-  private hashPassword(password: string): string {
-    return createHash('sha256').update(password).digest('hex');
-  }
 
   private generateOtp(): string {
     return randomInt(100000, 999999).toString();
@@ -148,7 +145,7 @@ export class AuthService {
     }
 
     // Hash password
-    const hashedPassword = this.hashPassword(password);
+    const hashedPassword = hashPassword(password);
 
     // Create new user with institution_owner role by default
     const newUser = this.authRepository.create({
@@ -272,7 +269,7 @@ export class AuthService {
     }
 
     // Verify password
-    const hashedPassword = this.hashPassword(password);
+    const hashedPassword = hashPassword(password);
     if (user?.password !== hashedPassword) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -320,7 +317,7 @@ export class AuthService {
     }
 
     // Hash new password
-    const hashedPassword = this.hashPassword(newPassword);
+    const hashedPassword = hashPassword(newPassword);
 
     // Update password
     user.password = hashedPassword;

@@ -8,17 +8,20 @@ import {
   ValidateIf,
 } from 'class-validator';
 
-export class UpdateStaffProfileDto {
-  @IsOptional()
+export class CreateInstitutionAdminDto {
+  @IsString()
+  @MaxLength(320)
+  username: string;
+
   @IsString()
   @MinLength(6)
   @MaxLength(30)
-  password?: string;
+  password: string;
 
-  @IsOptional()
   @IsString()
-  @MaxLength(255)
-  profilePictureUrl?: string;
+  @MinLength(2)
+  @MaxLength(50)
+  name: string;
 
   @IsOptional()
   @IsEmail()

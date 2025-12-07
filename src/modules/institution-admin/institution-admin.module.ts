@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { StaffController } from './staff.controller';
-import { StaffService } from './staff.service';
+import { InstitutionAdminController } from './institution-admin.controller';
+import { InstitutionAdminService } from './institution-admin.service';
 import { AuthEntity } from 'src/database/entities/auth.entity';
 import { InstitutionEntity } from 'src/database/entities/institution.entity';
 import { OtpEntity } from 'src/database/entities/otp.entity';
@@ -10,7 +10,7 @@ import { OtpEntity } from 'src/database/entities/otp.entity';
   imports: [
     TypeOrmModule.forFeature([AuthEntity, InstitutionEntity, OtpEntity]),
   ],
-  controllers: [StaffController],
-  providers: [StaffService],
+  controllers: [InstitutionAdminController],
+  providers: [InstitutionAdminService],
 })
-export class StaffModule {}
+export class InstitutionAdminModule {}

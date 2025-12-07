@@ -1,5 +1,7 @@
 import {
+  IsBoolean,
   IsEmail,
+  IsInt,
   IsOptional,
   IsString,
   Length,
@@ -8,33 +10,35 @@ import {
   ValidateIf,
 } from 'class-validator';
 
-export class CreateStaffDto {
-  @IsString()
-  @MaxLength(320)
-  username: string;
-
-  @IsString()
-  @MinLength(6)
-  @MaxLength(30)
-  password: string;
-
-  @IsString()
-  @MinLength(2)
-  @MaxLength(50)
-  name: string;
+export class UpdateInstitutionAdminDto {
+  @IsInt()
+  institutionAdminId: number;
 
   @IsOptional()
   @IsString()
-  @MaxLength(255)
-  profilePictureUrl?: string;
+  @MinLength(6)
+  @MaxLength(30)
+  password?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(50)
+  name?: string;
 
   @IsOptional()
   @IsEmail()
   @MaxLength(320)
   email?: string;
 
-  @ValidateIf((o) => o.email !== undefined && o.email !== null)
+  @ValidateIf(
+    (o: UpdateInstitutionAdminDto) => o.email !== undefined && o.email !== null,
+  )
   @IsString()
   @Length(6, 6)
   otp?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

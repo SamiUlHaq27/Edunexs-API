@@ -6,7 +6,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
+import { Repository, Like, FindOptionsWhere } from 'typeorm';
 import { AuthEntity } from 'src/database/entities/auth.entity';
 import { InstitutionEntity } from 'src/database/entities/institution.entity';
 import {
@@ -15,17 +15,16 @@ import {
   OtpTypeEnum,
 } from 'src/database/entities/otp.entity';
 import {
-  CreateStaffDto,
-  UpdateStaffDto,
-  UpdateStaffProfileDto,
-  DeleteStaffDto,
+  CreateInstitutionAdminDto,
+  UpdateInstitutionAdminDto,
+  UpdateInstitutionAdminProfileDto,
 } from './dtos';
 import { UserRoleEnum } from 'src/shared/enums';
-import { createHash } from 'crypto';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
+import { hashPassword } from 'src/shared/helpers';
 
 @Injectable()
-export class StaffService {
+export class InstitutionAdminService {
   constructor(
     @InjectRepository(AuthEntity)
     private readonly authRepository: Repository<AuthEntity>,
@@ -35,13 +34,11 @@ export class StaffService {
     private readonly otpRepository: Repository<OtpEntity>,
   ) {}
 
-  private hashPassword(password: string): string {
-    return createHash('sha256').update(password).digest('hex');
-  }
-
-  async create(createStaffDto: CreateStaffDto, ownerId: number) {
-    const { username, password, name, profilePictureUrl, email, otp } =
-      createStaffDto;
+  async create(
+    createInstitutionAdminDto: CreateInstitutionAdminDto,
+    ownerId: number,
+  ) {
+    const { username, password, name, email, otp } = createInstitutionAdminDto;
 
     // Verify the owner has an institution
     const institution = await this.institutionRepository.findOne({
@@ -51,7 +48,7 @@ export class StaffService {
 
     if (!institution) {
       throw new NotFoundException(
-        'You must have an institution to create staff members',
+        'You must have an institution to create institution admins',
       );
     }
 
@@ -109,44 +106,44 @@ export class StaffService {
     }
 
     // Hash password
-    const hashedPassword = this.hashPassword(password);
+    const hashedPassword = hashPassword(password);
 
-    // Create new staff user
-    const newStaff = this.authRepository.create({
+    // Create new institution admin user
+    const newInstitutionAdmin = this.authRepository.create({
       username: fullUsername,
       ...(email && { email }),
       password: hashedPassword,
       name,
-      profilePictureUrl,
-      role: UserRoleEnum.STAFF,
+      role: UserRoleEnum.INSTITUTION_ADMIN,
       isActive: true,
     });
 
     try {
-      const savedStaff = await this.authRepository.save(newStaff);
+      const savedInstitutionAdmin =
+        await this.authRepository.save(newInstitutionAdmin);
 
       return {
-        id: savedStaff?.id,
-        email: savedStaff?.email,
-        username: savedStaff?.username,
-        name: savedStaff?.name,
-        profilePictureUrl: savedStaff?.profilePictureUrl,
-        role: savedStaff?.role,
-        isActive: savedStaff?.isActive,
-        createdAt: savedStaff?.createdAt,
+        id: savedInstitutionAdmin?.id,
+        email: savedInstitutionAdmin?.email,
+        username: savedInstitutionAdmin?.username,
+        name: savedInstitutionAdmin?.name,
+        role: savedInstitutionAdmin?.role,
+        isActive: savedInstitutionAdmin?.isActive,
+        createdAt: savedInstitutionAdmin?.createdAt,
       };
     } catch {
-      throw new InternalServerErrorException('Failed to create staff member');
+      throw new InternalServerErrorException(
+        'Failed to create institution admin',
+      );
     }
   }
 
   async update(
-    staffId: number,
-    updateStaffDto: UpdateStaffDto,
+    institutionAdminId: number,
+    updateInstitutionAdminDto: UpdateInstitutionAdminDto,
     ownerId: number,
   ) {
-    const { password, name, profilePictureUrl, email, otp, isActive } =
-      updateStaffDto;
+    const { password, name, email, otp, isActive } = updateInstitutionAdminDto;
 
     // Verify the owner has an institution
     const institution = await this.institutionRepository.findOne({
@@ -156,28 +153,28 @@ export class StaffService {
 
     if (!institution) {
       throw new NotFoundException(
-        'You must have an institution to update staff members',
+        'You must have an institution to update institution admins',
       );
     }
 
-    // Find the staff member
-    const staff = await this.authRepository.findOne({
-      where: { id: staffId, role: UserRoleEnum.STAFF },
+    // Find the institution admin
+    const institutionAdmin = await this.authRepository.findOne({
+      where: { id: institutionAdminId, role: UserRoleEnum.INSTITUTION_ADMIN },
     });
 
-    if (!staff) {
-      throw new NotFoundException('Staff member not found');
+    if (!institutionAdmin) {
+      throw new NotFoundException('Institution admin not found');
     }
 
-    // Verify staff username starts with institution prefix (belongs to this institution)
-    if (!staff.username.startsWith(`${institution.prefix}_`)) {
+    // Verify institution admin username starts with institution prefix (belongs to this institution)
+    if (!institutionAdmin.username.startsWith(`${institution.prefix}_`)) {
       throw new NotFoundException(
-        'Staff member does not belong to your institution',
+        'Institution admin does not belong to your institution',
       );
     }
 
     // If email is being changed or added, verify OTP
-    if (email && email !== staff.email) {
+    if (email && email !== institutionAdmin.email) {
       if (!otp) {
         throw new BadRequestException(
           'OTP is required when changing or adding email',
@@ -210,7 +207,7 @@ export class StaffService {
         where: { email },
       });
 
-      if (existingEmail && existingEmail.id !== staffId) {
+      if (existingEmail && existingEmail.id !== institutionAdminId) {
         throw new ConflictException('Email already exists');
       }
 
@@ -220,50 +217,53 @@ export class StaffService {
     }
 
     // Update fields
-    if (name !== undefined) staff.name = name;
-    if (profilePictureUrl !== undefined)
-      staff.profilePictureUrl = profilePictureUrl;
-    if (email !== undefined) staff.email = email;
-    if (isActive !== undefined) staff.isActive = isActive;
+    if (name !== undefined) institutionAdmin.name = name;
+    if (email !== undefined) institutionAdmin.email = email;
+    if (isActive !== undefined) institutionAdmin.isActive = isActive;
     if (password) {
-      staff.password = this.hashPassword(password);
+      institutionAdmin.password = hashPassword(password);
     }
 
     try {
-      const updatedStaff = await this.authRepository.save(staff);
+      const updatedInstitutionAdmin =
+        await this.authRepository.save(institutionAdmin);
 
       return {
-        id: updatedStaff?.id,
-        email: updatedStaff?.email,
-        username: updatedStaff?.username,
-        name: updatedStaff?.name,
-        profilePictureUrl: updatedStaff?.profilePictureUrl,
-        role: updatedStaff?.role,
-        isActive: updatedStaff?.isActive,
-        updatedAt: updatedStaff?.updatedAt,
+        id: updatedInstitutionAdmin?.id,
+        email: updatedInstitutionAdmin?.email,
+        username: updatedInstitutionAdmin?.username,
+        name: updatedInstitutionAdmin?.name,
+        role: updatedInstitutionAdmin?.role,
+        isActive: updatedInstitutionAdmin?.isActive,
+        updatedAt: updatedInstitutionAdmin?.updatedAt,
       };
     } catch {
-      throw new InternalServerErrorException('Failed to update staff member');
+      throw new InternalServerErrorException(
+        'Failed to update institution admin',
+      );
     }
   }
 
   async updateProfile(
-    staffId: number,
-    updateStaffProfileDto: UpdateStaffProfileDto,
+    institutionAdminId: number,
+    updateInstitutionAdminProfileDto: UpdateInstitutionAdminProfileDto,
   ) {
-    const { password, profilePictureUrl, email, otp } = updateStaffProfileDto;
+    const { password, email, otp } = updateInstitutionAdminProfileDto;
 
-    // Find the staff member
-    const staff = await this.authRepository.findOne({
-      where: { id: staffId, role: UserRoleEnum.STAFF },
+    // Find the institution admin
+    const institutionAdmin = await this.authRepository.findOne({
+      where: {
+        id: institutionAdminId,
+        role: UserRoleEnum.INSTITUTION_ADMIN,
+      },
     });
 
-    if (!staff) {
-      throw new NotFoundException('Staff member not found');
+    if (!institutionAdmin) {
+      throw new NotFoundException('Institution admin not found');
     }
 
     // If email is being changed or added, verify OTP
-    if (email && email !== staff.email) {
+    if (email && email !== institutionAdmin.email) {
       if (!otp) {
         throw new BadRequestException(
           'OTP is required when changing or adding email',
@@ -296,7 +296,7 @@ export class StaffService {
         where: { email },
       });
 
-      if (existingEmail && existingEmail.id !== staffId) {
+      if (existingEmail && existingEmail.id !== institutionAdminId) {
         throw new ConflictException('Email already exists');
       }
 
@@ -306,25 +306,23 @@ export class StaffService {
     }
 
     // Update fields
-    if (profilePictureUrl !== undefined)
-      staff.profilePictureUrl = profilePictureUrl;
-    if (email !== undefined) staff.email = email;
+    if (email !== undefined) institutionAdmin.email = email;
     if (password) {
-      staff.password = this.hashPassword(password);
+      institutionAdmin.password = hashPassword(password);
     }
 
     try {
-      const updatedStaff = await this.authRepository.save(staff);
+      const updatedInstitutionAdmin =
+        await this.authRepository.save(institutionAdmin);
 
       return {
-        id: updatedStaff?.id,
-        email: updatedStaff?.email,
-        username: updatedStaff?.username,
-        name: updatedStaff?.name,
-        profilePictureUrl: updatedStaff?.profilePictureUrl,
-        role: updatedStaff?.role,
-        isActive: updatedStaff?.isActive,
-        updatedAt: updatedStaff?.updatedAt,
+        id: updatedInstitutionAdmin?.id,
+        email: updatedInstitutionAdmin?.email,
+        username: updatedInstitutionAdmin?.username,
+        name: updatedInstitutionAdmin?.name,
+        role: updatedInstitutionAdmin?.role,
+        isActive: updatedInstitutionAdmin?.isActive,
+        updatedAt: updatedInstitutionAdmin?.updatedAt,
       };
     } catch {
       throw new InternalServerErrorException('Failed to update profile');
@@ -343,34 +341,37 @@ export class StaffService {
 
     if (!institution) {
       throw new NotFoundException(
-        'You must have an institution to view staff members',
+        'You must have an institution to view institution admins',
       );
     }
 
     // Build where clause
-    const where: any = {
-      role: UserRoleEnum.STAFF,
+    const where: FindOptionsWhere<AuthEntity> = {
+      role: UserRoleEnum.INSTITUTION_ADMIN,
     };
 
-    // Define allowed staff attributes for filtering
-    const allowedAttributes = ['name', 'email', 'isActive'];
+    if (filters && typeof filters === 'object') {
+      const typedFilters = filters as Record<string, unknown>;
 
-    // Apply filters
-    if (filters && Object.keys(filters).length > 0) {
-      for (const [key, value] of Object.entries(filters)) {
-        if (value !== undefined && value !== null) {
-          if (allowedAttributes.includes(key)) {
-            if (key === 'isActive') {
-              where[key] = value === 'true' || value === true;
-            } else {
-              where[key] = Like(`%${value}%`);
-            }
-          }
+      if (typeof typedFilters.name === 'string') {
+        where.name = Like(`%${typedFilters.name}%`);
+      }
+
+      if (typeof typedFilters.email === 'string') {
+        where.email = Like(`%${typedFilters.email}%`);
+      }
+
+      if (typedFilters.isActive !== undefined) {
+        const isActiveValue = typedFilters.isActive;
+        if (typeof isActiveValue === 'string') {
+          where.isActive = isActiveValue === 'true';
+        } else if (typeof isActiveValue === 'boolean') {
+          where.isActive = isActiveValue;
         }
       }
     }
 
-    // Find all staff members whose username starts with institution prefix
+    // Find all institution admins whose username starts with institution prefix
     const [data, total] = await this.authRepository.findAndCount({
       where: [
         {
@@ -383,20 +384,19 @@ export class StaffService {
       order: { createdAt: 'DESC' },
     });
 
-    const staffMembers = data.map((staff) => ({
-      id: staff.id,
-      email: staff.email,
-      username: staff.username,
-      name: staff.name,
-      profilePictureUrl: staff.profilePictureUrl,
-      role: staff.role,
-      isActive: staff.isActive,
-      createdAt: staff.createdAt,
-      updatedAt: staff.updatedAt,
+    const institutionAdmins = data.map((institutionAdmin) => ({
+      id: institutionAdmin.id,
+      email: institutionAdmin.email,
+      username: institutionAdmin.username,
+      name: institutionAdmin.name,
+      role: institutionAdmin.role,
+      isActive: institutionAdmin.isActive,
+      createdAt: institutionAdmin.createdAt,
+      updatedAt: institutionAdmin.updatedAt,
     }));
 
     return {
-      data: staffMembers,
+      data: institutionAdmins,
       total,
       page,
       size,
@@ -404,7 +404,7 @@ export class StaffService {
     };
   }
 
-  async delete(staffId: number, ownerId: number) {
+  async delete(institutionAdminId: number, ownerId: number) {
     // Verify the owner has an institution
     const institution = await this.institutionRepository.findOne({
       where: { owner: { id: ownerId } },
@@ -413,35 +413,40 @@ export class StaffService {
 
     if (!institution) {
       throw new NotFoundException(
-        'You must have an institution to delete staff members',
+        'You must have an institution to delete institution admins',
       );
     }
 
-    // Find the staff member
-    const staff = await this.authRepository.findOne({
-      where: { id: staffId, role: UserRoleEnum.STAFF },
+    // Find the institution admin
+    const institutionAdmin = await this.authRepository.findOne({
+      where: {
+        id: institutionAdminId,
+        role: UserRoleEnum.INSTITUTION_ADMIN,
+      },
     });
 
-    if (!staff) {
-      throw new NotFoundException('Staff member not found');
+    if (!institutionAdmin) {
+      throw new NotFoundException('Institution admin not found');
     }
 
-    // Verify staff username starts with institution prefix (belongs to this institution)
-    if (!staff.username.startsWith(`${institution.prefix}_`)) {
+    // Verify institution admin username starts with institution prefix (belongs to this institution)
+    if (!institutionAdmin.username.startsWith(`${institution.prefix}_`)) {
       throw new NotFoundException(
-        'Staff member does not belong to your institution',
+        'Institution admin does not belong to your institution',
       );
     }
 
     try {
-      await this.authRepository.softDelete(staffId);
+      await this.authRepository.softDelete(institutionAdminId);
 
       return {
         success: true,
-        message: 'Staff member deleted successfully',
+        message: 'Institution admin deleted successfully',
       };
     } catch {
-      throw new InternalServerErrorException('Failed to delete staff member');
+      throw new InternalServerErrorException(
+        'Failed to delete institution admin',
+      );
     }
   }
 }
