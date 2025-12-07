@@ -28,7 +28,9 @@ export class CreateInstitutionAdminDto {
   @MaxLength(320)
   email?: string;
 
-  @ValidateIf((o) => o.email !== undefined && o.email !== null)
+  @ValidateIf(
+    (o: CreateInstitutionAdminDto) => o.email !== undefined && o.email !== null,
+  )
   @IsString()
   @Length(6, 6)
   otp?: string;

@@ -20,7 +20,10 @@ export class UpdateInstitutionAdminProfileDto {
   @MaxLength(320)
   email?: string;
 
-  @ValidateIf((o) => o.email !== undefined && o.email !== null)
+  @ValidateIf(
+    (o: UpdateInstitutionAdminProfileDto) =>
+      o.email !== undefined && o.email !== null,
+  )
   @IsString()
   @Length(6, 6)
   otp?: string;
