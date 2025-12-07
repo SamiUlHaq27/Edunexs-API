@@ -273,6 +273,7 @@ export class AuthService {
     // Find user
     const user = await this.authRepository.findOne({
       where: { ...(username && { username }), ...(email && { email }) },
+      relations: ['profilePictureFile'],
     });
 
     if (!user) {
