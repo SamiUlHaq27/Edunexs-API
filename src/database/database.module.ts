@@ -19,6 +19,7 @@ import { OtpEntity } from './entities/otp.entity';
         extra: { ssl: { rejectUnauthorized: false } },
         entities: [AuthEntity, InstitutionEntity, OtpEntity, FileEntity],
         synchronize: false,
+        logging: false,
       }),
     }),
   ],
