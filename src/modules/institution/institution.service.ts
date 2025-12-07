@@ -132,14 +132,32 @@ export class InstitutionService {
 
     const [data, total] = await this.institutionRepository.findAndCount({
       where,
-      relations: ['owner'],
+      relations: ['owner', 'logoFile'],
       skip,
       take: size,
       order: { createdAt: 'DESC' },
     });
 
+    // Map data to include logo file public URL
+    const mappedData = data.map((institution) => {
+      const logo = institution.logoFile
+        ? {
+            id: institution.logoFile.id,
+            fileId: institution.logoFile.fileId,
+            publicUrl: this.appwriteStorageService.getFileViewUrl({
+              fileId: institution.logoFile.fileId,
+            }),
+          }
+        : null;
+
+      return {
+        ...institution,
+        logo,
+      };
+    });
+
     return {
-      data,
+      data: mappedData,
       total,
       page,
       size,
