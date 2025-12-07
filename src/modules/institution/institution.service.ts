@@ -177,6 +177,8 @@ export class InstitutionService {
       city: institution.city,
       country: institution.country,
       address: institution.address,
+      logoUrl: logoFile?.publicUrl,
+      logo: logoFile,
       logoFile,
       isBlocked: institution.isBlocked,
       createdAt: institution.createdAt,

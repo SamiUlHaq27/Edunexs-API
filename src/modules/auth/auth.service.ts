@@ -44,6 +44,20 @@ export class AuthService {
     private readonly appwriteStorageService: AppwriteStorageService,
   ) {}
 
+  private buildProfilePictureResponse(file?: FileEntity | null) {
+    if (!file) return null;
+    return {
+      dbFileId: file.id,
+      appwriteFileId: file.fileId,
+      fileName: file.fileName,
+      mimeType: file.mimeType,
+      sizeOriginal: file.sizeOriginal,
+      publicUrl: this.appwriteStorageService.getFileViewUrl({
+        fileId: file.fileId,
+      }),
+    };
+  }
+
   private generateOtp(): string {
     return randomInt(100000, 999999).toString();
   }
@@ -230,7 +244,9 @@ export class AuthService {
           id: savedUser?.id,
           username: savedUser?.email,
           name: savedUser?.name,
-          profilePicture: profilePictureFileData,
+          profilePicture: this.buildProfilePictureResponse(
+            profilePictureFileData,
+          ),
           role: savedUser?.role,
           isActive: savedUser?.isActive,
           createdAt: savedUser?.createdAt,
@@ -289,7 +305,9 @@ export class AuthService {
         id: user?.id,
         username: user?.email,
         name: user?.name,
-        profilePictureFile: user?.profilePictureFile,
+        profilePicture: this.buildProfilePictureResponse(
+          user?.profilePictureFile,
+        ),
         role: user?.role,
         isActive: user?.isActive,
         createdAt: user?.createdAt,
@@ -347,15 +365,7 @@ export class AuthService {
       id: user.id,
       username: user.email,
       name: user.name,
-      profilePicture: user.profilePictureFile
-        ? {
-            dbFileId: user.profilePictureFile.id,
-            appwriteFileId: user.profilePictureFile.fileId,
-            publicUrl: this.appwriteStorageService.getFileViewUrl({
-              fileId: user.profilePictureFile.fileId,
-            }),
-          }
-        : null,
+      profilePicture: this.buildProfilePictureResponse(user.profilePictureFile),
       role: user.role,
       isActive: user.isActive,
       createdAt: user.createdAt,
