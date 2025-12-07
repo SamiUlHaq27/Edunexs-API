@@ -2,6 +2,7 @@ import {
   IsEmail,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   MaxLength,
   MinLength,
@@ -34,4 +35,8 @@ export class CreateInstitutionAdminDto {
   @IsString()
   @Length(6, 6)
   otp?: string;
+
+  @IsOptional()
+  @IsUUID()
+  profilePictureFileId?: string;
 }

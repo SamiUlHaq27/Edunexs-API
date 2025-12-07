@@ -432,6 +432,8 @@ export class AuthService {
       throw new BadRequestException('No account found with this email');
     }
 
+    // For EMAIL_VERIFICATION type, no restriction on email existence
+
     const name = email.split('@')[0];
 
     // Generate OTP

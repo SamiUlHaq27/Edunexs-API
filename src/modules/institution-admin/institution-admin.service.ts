@@ -14,6 +14,7 @@ import {
   OtpStatusEnum,
   OtpTypeEnum,
 } from 'src/database/entities/otp.entity';
+import { FileEntity } from 'src/database/entities/file.entity';
 import {
   CreateInstitutionAdminDto,
   UpdateInstitutionAdminDto,
@@ -22,6 +23,7 @@ import {
 import { UserRoleEnum } from 'src/shared/enums';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
 import { hashPassword } from 'src/shared/helpers';
+import { AppwriteStorageService } from 'src/shared/services/appwrite-storage.service';
 
 @Injectable()
 export class InstitutionAdminService {
@@ -32,13 +34,15 @@ export class InstitutionAdminService {
     private readonly institutionRepository: Repository<InstitutionEntity>,
     @InjectRepository(OtpEntity)
     private readonly otpRepository: Repository<OtpEntity>,
+    private readonly appwriteStorageService: AppwriteStorageService,
   ) {}
 
   async create(
     createInstitutionAdminDto: CreateInstitutionAdminDto,
     ownerId: number,
   ) {
-    const { username, password, name, email, otp } = createInstitutionAdminDto;
+    const { username, password, name, email, otp, profilePictureFileId } =
+      createInstitutionAdminDto;
 
     // Verify the owner has an institution
     const institution = await this.institutionRepository.findOne({
@@ -58,7 +62,7 @@ export class InstitutionAdminService {
         where: {
           email,
           otp,
-          type: OtpTypeEnum.SIGNUP,
+          type: OtpTypeEnum.EMAIL_VERIFICATION,
           status: OtpStatusEnum.PENDING,
         },
         order: { createdAt: 'DESC' },
@@ -82,6 +86,17 @@ export class InstitutionAdminService {
       throw new BadRequestException('OTP is required when email is provided');
     }
 
+    // If email is provided, check if it already exists first
+    if (email) {
+      const existingEmail = await this.authRepository.findOne({
+        where: { email },
+      });
+
+      if (existingEmail) {
+        throw new ConflictException('Email already exists');
+      }
+    }
+
     // Add institution prefix to username
     const fullUsername = `${institution.prefix}_${username}`;
 
@@ -92,17 +107,6 @@ export class InstitutionAdminService {
 
     if (existingUser) {
       throw new ConflictException('Username already exists');
-    }
-
-    // If email is provided, check if it already exists
-    if (email) {
-      const existingEmail = await this.authRepository.findOne({
-        where: { email },
-      });
-
-      if (existingEmail) {
-        throw new ConflictException('Email already exists');
-      }
     }
 
     // Hash password
@@ -116,6 +120,9 @@ export class InstitutionAdminService {
       name,
       role: UserRoleEnum.INSTITUTION_ADMIN,
       isActive: true,
+      ...(profilePictureFileId && {
+        profilePictureFile: { id: profilePictureFileId },
+      }),
     });
 
     try {
@@ -143,7 +150,8 @@ export class InstitutionAdminService {
     updateInstitutionAdminDto: UpdateInstitutionAdminDto,
     ownerId: number,
   ) {
-    const { password, name, email, otp, isActive } = updateInstitutionAdminDto;
+    const { password, name, email, otp, isActive, profilePictureFileId } =
+      updateInstitutionAdminDto;
 
     // Verify the owner has an institution
     const institution = await this.institutionRepository.findOne({
@@ -185,13 +193,31 @@ export class InstitutionAdminService {
         where: {
           email,
           otp,
-          type: OtpTypeEnum.SIGNUP,
+          type: OtpTypeEnum.EMAIL_VERIFICATION,
           status: OtpStatusEnum.PENDING,
         },
         order: { createdAt: 'DESC' },
       });
 
       if (!otpRecord) {
+        // Check if OTP exists with different status
+        const otpWithDifferentStatus = await this.otpRepository.findOne({
+          where: {
+            email,
+            otp,
+            type: OtpTypeEnum.EMAIL_VERIFICATION,
+          },
+          order: { createdAt: 'DESC' },
+        });
+
+        if (otpWithDifferentStatus) {
+          if (otpWithDifferentStatus.status === OtpStatusEnum.VERIFIED) {
+            throw new BadRequestException('OTP has already been used');
+          } else if (otpWithDifferentStatus.status === OtpStatusEnum.EXPIRED) {
+            throw new BadRequestException('OTP has expired');
+          }
+        }
+
         throw new BadRequestException('Invalid or expired OTP');
       }
 
@@ -222,6 +248,11 @@ export class InstitutionAdminService {
     if (isActive !== undefined) institutionAdmin.isActive = isActive;
     if (password) {
       institutionAdmin.password = hashPassword(password);
+    }
+    if (profilePictureFileId !== undefined) {
+      institutionAdmin.profilePictureFile = profilePictureFileId
+        ? ({ id: profilePictureFileId } as any)
+        : null;
     }
 
     try {
@@ -379,21 +410,30 @@ export class InstitutionAdminService {
           username: Like(`${institution.prefix}_%`),
         },
       ],
+      relations: ['profilePictureFile'],
       skip,
       take: size,
       order: { createdAt: 'DESC' },
     });
 
-    const institutionAdmins = data.map((institutionAdmin) => ({
-      id: institutionAdmin.id,
-      email: institutionAdmin.email,
-      username: institutionAdmin.username,
-      name: institutionAdmin.name,
-      role: institutionAdmin.role,
-      isActive: institutionAdmin.isActive,
-      createdAt: institutionAdmin.createdAt,
-      updatedAt: institutionAdmin.updatedAt,
-    }));
+    const institutionAdmins = data.map((institutionAdmin) => {
+      const profilePicture = this.buildProfilePictureResponse(
+        institutionAdmin.profilePictureFile,
+      );
+
+      return {
+        id: institutionAdmin.id,
+        email: institutionAdmin.email,
+        username: institutionAdmin.username,
+        name: institutionAdmin.name,
+        role: institutionAdmin.role,
+        isActive: institutionAdmin.isActive,
+        createdAt: institutionAdmin.createdAt,
+        updatedAt: institutionAdmin.updatedAt,
+        profilePictureFileId: institutionAdmin.profilePictureFile?.id,
+        profilePicture,
+      };
+    });
 
     return {
       data: institutionAdmins,
@@ -448,5 +488,21 @@ export class InstitutionAdminService {
         'Failed to delete institution admin',
       );
     }
+  }
+
+  private buildProfilePictureResponse(fileEntity?: FileEntity | null) {
+    if (!fileEntity) {
+      return null;
+    }
+
+    const publicUrl = this.appwriteStorageService.getFileViewUrl({
+      fileId: fileEntity.fileId,
+    });
+
+    return {
+      id: fileEntity.id,
+      fileId: fileEntity.fileId,
+      publicUrl,
+    };
   }
 }
