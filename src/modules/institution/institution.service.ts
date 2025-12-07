@@ -5,10 +5,11 @@ import {
   ForbiddenException,
   NotFoundException,
   Logger,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, FindOptionsWhere } from 'typeorm';
-import { InstitutionEntity } from 'src/database/entities';
+import { InstitutionEntity, FileEntity } from 'src/database/entities';
 import {
   CreateInstitutionDto,
   UpdateInstitutionDto,
@@ -16,6 +17,7 @@ import {
 } from './dtos';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
 import { BrevoService } from 'src/shared/services/brevo.service';
+import { AppwriteStorageService } from 'src/shared/services/appwrite-storage.service';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as Handlebars from 'handlebars';
@@ -27,12 +29,14 @@ export class InstitutionService {
   constructor(
     @InjectRepository(InstitutionEntity)
     private readonly institutionRepository: Repository<InstitutionEntity>,
+    @InjectRepository(FileEntity)
+    private readonly fileRepository: Repository<FileEntity>,
     private readonly brevoService: BrevoService,
+    private readonly appwriteStorageService: AppwriteStorageService,
   ) {}
 
   async create(createInstitutionDto: CreateInstitutionDto, authId: number) {
-    const { prefix, name, city, country, address, logoUrl } =
-      createInstitutionDto;
+    const { prefix, name, city, country, address } = createInstitutionDto;
 
     // Check if owner already has an institution
     const ownerInstitution = await this.institutionRepository.findOne({
@@ -64,7 +68,6 @@ export class InstitutionService {
       city,
       country,
       address,
-      logoUrl,
       owner: { id: authId },
     });
 
@@ -78,7 +81,6 @@ export class InstitutionService {
         city: savedInstitution?.city,
         country: savedInstitution?.country,
         address: savedInstitution?.address,
-        logoUrl: savedInstitution?.logoUrl,
         createdAt: savedInstitution?.createdAt,
       };
     } catch {
@@ -97,14 +99,7 @@ export class InstitutionService {
     const skip = (page - 1) * size;
 
     // Define allowed institution attributes for filtering
-    const allowedAttributes = [
-      'prefix',
-      'name',
-      'city',
-      'country',
-      'address',
-      'logoUrl',
-    ];
+    const allowedAttributes = ['prefix', 'name', 'city', 'country', 'address'];
 
     // Build where clause based on filters
     const where: FindOptionsWhere<InstitutionEntity> = {};
@@ -137,14 +132,32 @@ export class InstitutionService {
 
     const [data, total] = await this.institutionRepository.findAndCount({
       where,
-      relations: ['owner'],
+      relations: ['owner', 'logoFile'],
       skip,
       take: size,
       order: { createdAt: 'DESC' },
     });
 
+    // Map data to include logo file public URL
+    const mappedData = data.map((institution) => {
+      const logo = institution.logoFile
+        ? {
+            id: institution.logoFile.id,
+            fileId: institution.logoFile.fileId,
+            publicUrl: this.appwriteStorageService.getFileViewUrl({
+              fileId: institution.logoFile.fileId,
+            }),
+          }
+        : null;
+
+      return {
+        ...institution,
+        logo,
+      };
+    });
+
     return {
-      data,
+      data: mappedData,
       total,
       page,
       size,
@@ -155,14 +168,40 @@ export class InstitutionService {
   async findByOwnerId(authId: number) {
     const institution = await this.institutionRepository.findOne({
       where: { owner: { id: authId } },
-      relations: ['owner'],
+      relations: ['owner', 'logoFile'],
     });
 
     if (!institution) {
       throw new NotFoundException('Institution not found');
     }
 
-    return institution;
+    // Format response with logo file data if available
+    const logoFile = institution.logoFile
+      ? {
+          dbFileId: institution.logoFile.id,
+          appwriteFileId: institution.logoFile.fileId,
+          fileName: institution.logoFile.fileName,
+          mimeType: institution.logoFile.mimeType,
+          sizeOriginal: institution.logoFile.sizeOriginal,
+          publicUrl: this.appwriteStorageService.getFileViewUrl({
+            fileId: institution.logoFile.fileId,
+          }),
+        }
+      : null;
+
+    return {
+      prefix: institution.prefix,
+      name: institution.name,
+      city: institution.city,
+      country: institution.country,
+      address: institution.address,
+      logoUrl: logoFile?.publicUrl,
+      logo: logoFile,
+      logoFile,
+      isBlocked: institution.isBlocked,
+      createdAt: institution.createdAt,
+      updatedAt: institution.upodatedAt,
+    };
   }
 
   async update(authId: number, updateInstitutionDto: UpdateInstitutionDto) {
@@ -278,6 +317,79 @@ export class InstitutionService {
       throw new InternalServerErrorException(
         'Failed to update institution status',
       );
+    }
+  }
+
+  async uploadLogo(authId: number, logoFile: Express.Multer.File) {
+    // Find institution by owner ID
+    const institution = await this.institutionRepository.findOne({
+      where: { owner: { id: authId } },
+      relations: ['logoFile'],
+    });
+
+    if (!institution) {
+      throw new NotFoundException(
+        'Institution not found. Please create an institution first.',
+      );
+    }
+
+    const maxFileSize = 5 * 1024 * 1024; // 5MB
+    if (logoFile.size > maxFileSize) {
+      throw new BadRequestException('Logo size exceeds 5MB limit');
+    }
+
+    try {
+      const fileName = `${institution.prefix}-logo-${Date.now()}-${logoFile.originalname}`;
+
+      // Upload to Appwrite
+      const uploadResult = await this.appwriteStorageService.uploadFile({
+        file: logoFile.buffer,
+        fileName: fileName,
+        mimeType: logoFile.mimetype,
+      });
+
+      // Save file record in database
+      const fileRecord = this.fileRepository.create({
+        fileName: uploadResult.fileName,
+        fileId: uploadResult.fileId,
+        mimeType: uploadResult.mimeType,
+        sizeOriginal: uploadResult.sizeOriginal,
+      });
+
+      const savedFile = await this.fileRepository.save(fileRecord);
+
+      // Link logo to institution
+      institution.logoFile = savedFile;
+      await this.institutionRepository.save(institution);
+
+      this.logger.log(
+        `Logo uploaded successfully for institution ${institution.prefix}`,
+      );
+
+      // Generate public URL on response
+      const publicUrl = this.appwriteStorageService.getFileViewUrl({
+        fileId: uploadResult.fileId,
+      });
+
+      return {
+        success: true,
+        message: 'Logo uploaded successfully',
+        dbFileId: savedFile.id,
+        appwriteFileId: uploadResult.fileId,
+        fileName: uploadResult.fileName,
+        mimeType: uploadResult.mimeType,
+        sizeOriginal: uploadResult.sizeOriginal,
+        publicUrl: publicUrl,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to upload logo for institution ${institution.prefix}`,
+        error instanceof Error ? error.message : '',
+      );
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to upload logo');
     }
   }
 }

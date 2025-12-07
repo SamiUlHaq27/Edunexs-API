@@ -4,9 +4,12 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  OneToOne,
+  JoinColumn,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { FileEntity } from './file.entity';
 
 @Entity({ name: 'tbl_auth' })
 export class AuthEntity {
@@ -25,8 +28,9 @@ export class AuthEntity {
   @Column({ type: 'character varying', nullable: true })
   name: string;
 
-  @Column({ nullable: true })
-  profilePictureUrl: string;
+  @OneToOne(() => FileEntity)
+  @JoinColumn({ name: 'profilePictureFileId' })
+  profilePictureFile?: FileEntity;
 
   @Column({ type: 'character varying' })
   role: UserRoleEnum;

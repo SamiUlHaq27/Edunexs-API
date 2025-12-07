@@ -2,13 +2,14 @@ import {
   IsEmail,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   MaxLength,
   MinLength,
   ValidateIf,
 } from 'class-validator';
 
-export class CreateStaffDto {
+export class CreateInstitutionAdminDto {
   @IsString()
   @MaxLength(320)
   username: string;
@@ -24,17 +25,18 @@ export class CreateStaffDto {
   name: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  profilePictureUrl?: string;
-
-  @IsOptional()
   @IsEmail()
   @MaxLength(320)
   email?: string;
 
-  @ValidateIf((o) => o.email !== undefined && o.email !== null)
+  @ValidateIf(
+    (o: CreateInstitutionAdminDto) => o.email !== undefined && o.email !== null,
+  )
   @IsString()
   @Length(6, 6)
   otp?: string;
+
+  @IsOptional()
+  @IsUUID()
+  profilePictureFileId?: string;
 }

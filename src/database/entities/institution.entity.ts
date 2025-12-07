@@ -9,6 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { AuthEntity } from './auth.entity';
+import { FileEntity } from './file.entity';
 
 @Entity({ name: 'tbl_institution' })
 export class InstitutionEntity {
@@ -29,6 +30,10 @@ export class InstitutionEntity {
 
   @Column({ nullable: true })
   logoUrl: string;
+
+  @OneToOne(() => FileEntity)
+  @JoinColumn({ name: 'logoFileId' })
+  logoFile?: FileEntity;
 
   @Column({ default: false })
   isBlocked: boolean;

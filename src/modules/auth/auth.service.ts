@@ -5,21 +5,25 @@ import {
   InternalServerErrorException,
   BadRequestException,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { AuthEntity } from 'src/database/entities/auth.entity';
+import { FileEntity } from 'src/database/entities/file.entity';
 import {
   OtpEntity,
   OtpStatusEnum,
   OtpTypeEnum,
 } from 'src/database/entities/otp.entity';
 import { UserRoleEnum } from 'src/shared/enums';
-import { SignupDto, LoginDto, ResetPasswordDto } from './dtos';
-import { createHash, randomInt } from 'crypto';
+import { SignupDto, LoginDto, ResetPasswordDto, UploadFileDto } from './dtos';
+import { randomInt } from 'crypto';
 import { UserData } from 'src/shared/types';
+import { hashPassword } from 'src/shared/helpers';
 import { BrevoService } from 'src/shared/services/brevo.service';
+import { AppwriteStorageService } from 'src/shared/services/appwrite-storage.service';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as Handlebars from 'handlebars';
@@ -33,12 +37,25 @@ export class AuthService {
     private readonly authRepository: Repository<AuthEntity>,
     @InjectRepository(OtpEntity)
     private readonly otpRepository: Repository<OtpEntity>,
+    @InjectRepository(FileEntity)
+    private readonly fileRepository: Repository<FileEntity>,
     private readonly jwtService: JwtService,
     private readonly brevoService: BrevoService,
+    private readonly appwriteStorageService: AppwriteStorageService,
   ) {}
 
-  private hashPassword(password: string): string {
-    return createHash('sha256').update(password).digest('hex');
+  private buildProfilePictureResponse(file?: FileEntity | null) {
+    if (!file) return null;
+    return {
+      dbFileId: file.id,
+      appwriteFileId: file.fileId,
+      fileName: file.fileName,
+      mimeType: file.mimeType,
+      sizeOriginal: file.sizeOriginal,
+      publicUrl: this.appwriteStorageService.getFileViewUrl({
+        fileId: file.fileId,
+      }),
+    };
   }
 
   private generateOtp(): string {
@@ -88,15 +105,25 @@ export class AuthService {
     return template({ name, email, username });
   }
 
-  async signup(signupDto: SignupDto) {
-    const { email, password, name, profilePictureUrl, otp } = signupDto;
-
-    // Verify OTP first
+  /**
+   * Verify OTP for signup or password reset
+   * @param email Email address
+   * @param otp OTP code
+   * @param type OTP type (SIGNUP or PASSWORD_RESET)
+   * @returns OTP record if valid
+   * @throws BadRequestException if OTP is invalid or expired
+   */
+  private async verifyOtp(
+    email: string,
+    otp: string,
+    type: OtpTypeEnum,
+  ): Promise<OtpEntity> {
+    // Find OTP record
     const otpRecord = await this.otpRepository.findOne({
       where: {
         email,
         otp,
-        type: OtpTypeEnum.SIGNUP,
+        type,
         status: OtpStatusEnum.PENDING,
       },
       order: { createdAt: 'DESC' },
@@ -113,6 +140,15 @@ export class AuthService {
       throw new BadRequestException('OTP has expired');
     }
 
+    return otpRecord;
+  }
+
+  async signup(signupDto: SignupDto, profilePictureFile?: Express.Multer.File) {
+    const { email, password, name, otp } = signupDto;
+
+    // Verify OTP first
+    const otpRecord = await this.verifyOtp(email, otp, OtpTypeEnum.SIGNUP);
+
     // Check if user already exists
     const existingUser = await this.authRepository.findOne({
       where: { email: email },
@@ -123,14 +159,13 @@ export class AuthService {
     }
 
     // Hash password
-    const hashedPassword = this.hashPassword(password);
+    const hashedPassword = hashPassword(password);
 
     // Create new user with institution_owner role by default
     const newUser = this.authRepository.create({
       email: email,
       password: hashedPassword,
       name,
-      profilePictureUrl,
       role: UserRoleEnum.INSITUTION_OWNER,
       isActive: true,
     });
@@ -141,6 +176,36 @@ export class AuthService {
       // Mark OTP as verified
       otpRecord.status = OtpStatusEnum.VERIFIED;
       await this.otpRepository.save(otpRecord);
+
+      // Handle profile picture upload if provided
+      let profilePictureFileData: FileEntity | undefined | null;
+      if (profilePictureFile) {
+        try {
+          const uploadResult = await this.uploadFile(
+            savedUser.id,
+            profilePictureFile,
+            { fileName: undefined }, // Let uploadFile generate the filename
+          );
+
+          // Link profile picture to user and fetch the saved file entity
+          const fileEntity = await this.fileRepository.findOne({
+            where: { fileId: uploadResult?.appwriteFileId },
+          });
+          profilePictureFileData = fileEntity;
+
+          if (fileEntity) {
+            savedUser.profilePictureFile = fileEntity;
+            await this.authRepository.save(savedUser);
+            profilePictureFileData = fileEntity;
+          }
+        } catch (error) {
+          this.logger.error(
+            `Failed to upload profile picture for user ${savedUser.id}`,
+            error instanceof Error ? error.message : '',
+          );
+          // Continue with signup even if profile picture upload fails
+        }
+      }
 
       // Send welcome email
       try {
@@ -179,13 +244,18 @@ export class AuthService {
           id: savedUser?.id,
           username: savedUser?.email,
           name: savedUser?.name,
-          profilePictureUrl: savedUser?.profilePictureUrl,
+          profilePicture: this.buildProfilePictureResponse(
+            profilePictureFileData,
+          ),
           role: savedUser?.role,
           isActive: savedUser?.isActive,
           createdAt: savedUser?.createdAt,
         },
       };
-    } catch {
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       throw new InternalServerErrorException('Failed to create user');
     }
   }
@@ -203,6 +273,7 @@ export class AuthService {
     // Find user
     const user = await this.authRepository.findOne({
       where: { ...(username && { username }), ...(email && { email }) },
+      relations: ['profilePictureFile'],
     });
 
     if (!user) {
@@ -215,7 +286,7 @@ export class AuthService {
     }
 
     // Verify password
-    const hashedPassword = this.hashPassword(password);
+    const hashedPassword = hashPassword(password);
     if (user?.password !== hashedPassword) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -235,7 +306,9 @@ export class AuthService {
         id: user?.id,
         username: user?.email,
         name: user?.name,
-        profilePictureUrl: user?.profilePictureUrl,
+        profilePicture: this.buildProfilePictureResponse(
+          user?.profilePictureFile,
+        ),
         role: user?.role,
         isActive: user?.isActive,
         createdAt: user?.createdAt,
@@ -247,26 +320,11 @@ export class AuthService {
     const { email, otp, newPassword } = resetPasswordDto;
 
     // Verify OTP
-    const otpRecord = await this.otpRepository.findOne({
-      where: {
-        email,
-        otp,
-        type: OtpTypeEnum.PASSWORD_RESET,
-        status: OtpStatusEnum.PENDING,
-      },
-      order: { createdAt: 'DESC' },
-    });
-
-    if (!otpRecord) {
-      throw new BadRequestException('Invalid or expired OTP');
-    }
-
-    // Check if OTP has expired
-    if (otpRecord?.expiresAt && new Date() > otpRecord.expiresAt) {
-      otpRecord.status = OtpStatusEnum.EXPIRED;
-      await this.otpRepository.save(otpRecord);
-      throw new BadRequestException('OTP has expired');
-    }
+    const otpRecord = await this.verifyOtp(
+      email,
+      otp,
+      OtpTypeEnum.PASSWORD_RESET,
+    );
 
     // Find user
     const user = await this.authRepository.findOne({
@@ -278,7 +336,7 @@ export class AuthService {
     }
 
     // Hash new password
-    const hashedPassword = this.hashPassword(newPassword);
+    const hashedPassword = hashPassword(newPassword);
 
     // Update password
     user.password = hashedPassword;
@@ -291,6 +349,68 @@ export class AuthService {
     return {
       success: true,
       message: 'Password reset successfully',
+    };
+  }
+
+  async getCurrentUser(authId: number) {
+    const user = await this.authRepository.findOne({
+      where: { id: authId },
+      relations: ['profilePictureFile'],
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return {
+      id: user.id,
+      username: user.email,
+      name: user.name,
+      profilePicture: this.buildProfilePictureResponse(user.profilePictureFile),
+      role: user.role,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+  }
+
+  async getFileUrl(fileId: string) {
+    if (!fileId) {
+      throw new BadRequestException('fileId is required');
+    }
+
+    const file = await this.fileRepository.findOne({
+      where: { id: fileId },
+    });
+
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+
+    let publicUrl: string | null = null;
+    try {
+      publicUrl = this.appwriteStorageService.getFileViewUrl({
+        fileId: file.fileId,
+      });
+      this.logger.log(
+        `Generated publicUrl for fileId ${file.fileId}: ${publicUrl}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate public URL for fileId ${file.fileId}`,
+        error instanceof Error ? error.message : '',
+      );
+      publicUrl = null;
+    }
+
+    return {
+      fileId: file.id,
+      fileName: file.fileName,
+      appwriteFileId: file.fileId,
+      mimeType: file.mimeType,
+      sizeOriginal: file.sizeOriginal,
+      publicUrl,
+      createdAt: file.createdAt,
     };
   }
 
@@ -311,6 +431,8 @@ export class AuthService {
     if (type === OtpTypeEnum.PASSWORD_RESET && !existingUser) {
       throw new BadRequestException('No account found with this email');
     }
+
+    // For EMAIL_VERIFICATION type, no restriction on email existence
 
     const name = email.split('@')[0];
 
@@ -359,6 +481,70 @@ export class AuthService {
         e instanceof Error ? e.message : '',
       );
       throw new InternalServerErrorException('Failed to send OTP email');
+    }
+  }
+
+  async uploadFile(
+    authId: number,
+    file: Express.Multer.File,
+    uploadDto: UploadFileDto,
+  ) {
+    const user = await this.authRepository.findOne({
+      where: { id: authId },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const maxFileSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxFileSize) {
+      throw new BadRequestException('File size exceeds 5MB limit');
+    }
+
+    try {
+      const fileName =
+        uploadDto?.fileName || `${user.id}-${Date.now()}-${file.originalname}`;
+
+      const uploadResult = await this.appwriteStorageService.uploadFile({
+        file: file.buffer,
+        fileName: fileName,
+        mimeType: file.mimetype,
+      });
+
+      // Save file record in database
+      const fileRecord = this.fileRepository.create({
+        fileName: uploadResult.fileName,
+        fileId: uploadResult.fileId,
+        mimeType: uploadResult.mimeType,
+        sizeOriginal: uploadResult.sizeOriginal,
+      });
+
+      const savedFile = await this.fileRepository.save(fileRecord);
+
+      this.logger.log(`File uploaded successfully for user ${authId}`);
+
+      // Generate public URL on response
+      const publicUrl = this.appwriteStorageService.getFileViewUrl({
+        fileId: uploadResult.fileId,
+      });
+
+      return {
+        success: true,
+        message: 'File uploaded successfully',
+        dbFileId: savedFile.id,
+        appwriteFileId: uploadResult.fileId,
+        fileName: uploadResult.fileName,
+        mimeType: uploadResult.mimeType,
+        sizeOriginal: uploadResult.sizeOriginal,
+        publicUrl: publicUrl,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to upload file for user ${authId}`,
+        error instanceof Error ? error.message : '',
+      );
+      throw new InternalServerErrorException('Failed to upload file');
     }
   }
 }

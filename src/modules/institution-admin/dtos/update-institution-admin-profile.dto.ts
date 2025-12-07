@@ -8,7 +8,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 
-export class UpdateStaffProfileDto {
+export class UpdateInstitutionAdminProfileDto {
   @IsOptional()
   @IsString()
   @MinLength(6)
@@ -16,16 +16,14 @@ export class UpdateStaffProfileDto {
   password?: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  profilePictureUrl?: string;
-
-  @IsOptional()
   @IsEmail()
   @MaxLength(320)
   email?: string;
 
-  @ValidateIf((o) => o.email !== undefined && o.email !== null)
+  @ValidateIf(
+    (o: UpdateInstitutionAdminProfileDto) =>
+      o.email !== undefined && o.email !== null,
+  )
   @IsString()
   @Length(6, 6)
   otp?: string;

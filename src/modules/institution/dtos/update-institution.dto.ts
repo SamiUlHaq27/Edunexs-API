@@ -1,10 +1,4 @@
-import {
-  IsOptional,
-  IsString,
-  IsUrl,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class UpdateInstitutionDto {
   @IsOptional()
@@ -33,9 +27,4 @@ export class UpdateInstitutionDto {
   @IsString()
   @MaxLength(200)
   address?: string;
-
-  @IsOptional()
-  @IsUrl()
-  @MaxLength(2048)
-  logoUrl?: string;
 }
