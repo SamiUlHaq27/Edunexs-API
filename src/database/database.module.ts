@@ -15,6 +15,7 @@ import { getSecretValue } from 'src/config/secret.config';
         database: getSecretValue('DB_NAME'),
         entities: ['src/database/entities/*.entity.ts'],
         synchronize: false,
+        logging: false,
       }),
     }),
   ],
