@@ -1,7 +1,9 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { loadSecrets } from './config/secret.config';
+
+const logger = new Logger('Bootstrap');
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -30,11 +32,11 @@ async function main() {
   try {
     await loadSecrets();
     await bootstrap();
-    console.log(
+    logger.log(
       `Application started successfully at port ${process.env.PORT ?? 3000}`,
     );
   } catch (error) {
-    console.error(
+    logger.error(
       'Failed to start application:',
       error instanceof Error ? error.message : String(error),
     );

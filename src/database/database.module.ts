@@ -13,7 +13,7 @@ import { getSecretValue } from 'src/config/secret.config';
         username: getSecretValue('DB_USER'),
         password: getSecretValue('DB_PASSWORD'),
         database: getSecretValue('DB_NAME'),
-        entities: ['src/database/entities/*.entity.ts'],
+        entities: ['src/database/entities/*.entity.{js, ts}'],
         synchronize: false,
         logging: false,
       }),
