@@ -17,7 +17,7 @@ import {
   UpdateInstitutionStatusDto,
 } from './dtos';
 import { AllowedRoles } from 'src/shared/reflectors';
-import { UserRoleEnum } from 'src/shared/enums';
+import { UserRoles } from 'src/shared/consts';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
 import { User } from 'src/shared/pipes';
 
@@ -26,7 +26,7 @@ export class InstitutionController {
   constructor(private readonly institutionService: InstitutionService) {}
 
   @Version('1')
-  @AllowedRoles([UserRoleEnum.INSITUTION_OWNER])
+  @AllowedRoles([UserRoles.INSTITUTION_OWNER])
   @Post()
   async create(
     @Body() createInstitutionDto: CreateInstitutionDto,
@@ -42,28 +42,28 @@ export class InstitutionController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoleEnum.ADMIN])
+  @AllowedRoles([UserRoles.ADMIN])
   @Post('admin/all')
   async findAllForAdmin(@Body() listFiltersDto: ListFiltersDto) {
     return this.institutionService.findAllForAdmin(listFiltersDto);
   }
 
   @Version('1')
-  @AllowedRoles([UserRoleEnum.ADMIN])
+  @AllowedRoles([UserRoles.ADMIN])
   @Post('admin/status')
   async updateStatus(@Body() updateStatusDto: UpdateInstitutionStatusDto) {
     return this.institutionService.updateStatus(updateStatusDto);
   }
 
   @Version('1')
-  @AllowedRoles([UserRoleEnum.INSITUTION_OWNER])
+  @AllowedRoles([UserRoles.INSTITUTION_OWNER])
   @Get('my-institution')
   async getMyInstitution(@User('authId') authId: number) {
     return await this.institutionService.findByOwnerId(authId);
   }
 
   @Version('1')
-  @AllowedRoles([UserRoleEnum.INSITUTION_OWNER])
+  @AllowedRoles([UserRoles.INSTITUTION_OWNER])
   @Put()
   async update(
     @Body() updateInstitutionDto: UpdateInstitutionDto,
@@ -73,7 +73,7 @@ export class InstitutionController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoleEnum.INSITUTION_OWNER])
+  @AllowedRoles([UserRoles.INSTITUTION_OWNER])
   @Post('upload-logo')
   @UseInterceptors(
     FileInterceptor('logoFile', {

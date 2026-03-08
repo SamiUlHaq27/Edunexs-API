@@ -9,18 +9,31 @@ import { OtpEntity } from 'src/database/entities/otp.entity';
 import { getSecretValue } from 'src/config/secret.config';
 import { BrevoService } from 'src/shared/services/brevo.service';
 import { AppwriteStorageService } from 'src/shared/services/appwrite-storage.service';
+import { InstitutionAdminService } from './institution-admin.service';
+import { InstitutionAdminController } from './institution-admin.controller';
+import { InstitutionEntity } from 'src/database/entities';
 
 @Global()
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AuthEntity, OtpEntity, FileEntity]),
+    TypeOrmModule.forFeature([
+      AuthEntity,
+      OtpEntity,
+      FileEntity,
+      InstitutionEntity,
+    ]),
     JwtModule.register({
       secret: getSecretValue('JWT_SECRET') || 'your-secret-key',
       signOptions: { expiresIn: '24h' },
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, BrevoService, AppwriteStorageService],
+  controllers: [AuthController, InstitutionAdminController],
+  providers: [
+    AuthService,
+    InstitutionAdminService,
+    BrevoService,
+    AppwriteStorageService,
+  ],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

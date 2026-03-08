@@ -1,9 +1,5 @@
 import { AuthModule } from './auth/auth.module';
+import { CourseModule } from './course/course.module';
 import { InstitutionModule } from './institution/institution.module';
-import { InstitutionAdminModule } from './institution-admin/institution-admin.module';
 
-export const AllModules = [
-  AuthModule,
-  InstitutionModule,
-  InstitutionAdminModule,
-];
+export const AllModules = [AuthModule, InstitutionModule, CourseModule];

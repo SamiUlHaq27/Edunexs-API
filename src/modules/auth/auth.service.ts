@@ -12,12 +12,8 @@ import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { AuthEntity } from 'src/database/entities/auth.entity';
 import { FileEntity } from 'src/database/entities/file.entity';
-import {
-  OtpEntity,
-  OtpStatusEnum,
-  OtpTypeEnum,
-} from 'src/database/entities/otp.entity';
-import { UserRoleEnum } from 'src/shared/enums';
+import { OtpEntity } from 'src/database/entities/otp.entity';
+import { OtpStatuses, OtpTypes, UserRoles } from 'src/shared/consts';
 import { SignupDto, LoginDto, ResetPasswordDto, UploadFileDto } from './dtos';
 import { randomInt } from 'crypto';
 import { UserData } from 'src/shared/types';
@@ -27,6 +23,7 @@ import { AppwriteStorageService } from 'src/shared/services/appwrite-storage.ser
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as Handlebars from 'handlebars';
+import { OtpTypesType } from 'src/shared/types/otp.type';
 
 @Injectable()
 export class AuthService {
@@ -116,7 +113,7 @@ export class AuthService {
   private async verifyOtp(
     email: string,
     otp: string,
-    type: OtpTypeEnum,
+    type: OtpTypesType,
   ): Promise<OtpEntity> {
     // Find OTP record
     const otpRecord = await this.otpRepository.findOne({
@@ -124,7 +121,7 @@ export class AuthService {
         email,
         otp,
         type,
-        status: OtpStatusEnum.PENDING,
+        status: OtpStatuses.PENDING,
       },
       order: { createdAt: 'DESC' },
     });
@@ -135,7 +132,7 @@ export class AuthService {
 
     // Check if OTP has expired
     if (otpRecord?.expiresAt && new Date() > otpRecord.expiresAt) {
-      otpRecord.status = OtpStatusEnum.EXPIRED;
+      otpRecord.status = OtpStatuses.EXPIRED;
       await this.otpRepository.save(otpRecord);
       throw new BadRequestException('OTP has expired');
     }
@@ -147,7 +144,7 @@ export class AuthService {
     const { email, password, name, otp } = signupDto;
 
     // Verify OTP first
-    const otpRecord = await this.verifyOtp(email, otp, OtpTypeEnum.SIGNUP);
+    const otpRecord = await this.verifyOtp(email, otp, OtpTypes.SIGNUP);
 
     // Check if user already exists
     const existingUser = await this.authRepository.findOne({
@@ -166,7 +163,7 @@ export class AuthService {
       email: email,
       password: hashedPassword,
       name,
-      role: UserRoleEnum.INSITUTION_OWNER,
+      role: UserRoles.INSTITUTION_OWNER,
       isActive: true,
     });
 
@@ -174,7 +171,7 @@ export class AuthService {
       const savedUser = await this.authRepository.save(newUser);
 
       // Mark OTP as verified
-      otpRecord.status = OtpStatusEnum.VERIFIED;
+      otpRecord.status = OtpStatuses.VERIFIED;
       await this.otpRepository.save(otpRecord);
 
       // Handle profile picture upload if provided
@@ -320,11 +317,7 @@ export class AuthService {
     const { email, otp, newPassword } = resetPasswordDto;
 
     // Verify OTP
-    const otpRecord = await this.verifyOtp(
-      email,
-      otp,
-      OtpTypeEnum.PASSWORD_RESET,
-    );
+    const otpRecord = await this.verifyOtp(email, otp, OtpTypes.PASSWORD_RESET);
 
     // Find user
     const user = await this.authRepository.findOne({
@@ -343,7 +336,7 @@ export class AuthService {
     await this.authRepository.save(user);
 
     // Mark OTP as verified
-    otpRecord.status = OtpStatusEnum.VERIFIED;
+    otpRecord.status = OtpStatuses.VERIFIED;
     await this.otpRepository.save(otpRecord);
 
     return {
@@ -414,8 +407,8 @@ export class AuthService {
     };
   }
 
-  async sendOtp(sendOtpDto: { email: string; type?: OtpTypeEnum }) {
-    const { email, type = OtpTypeEnum.SIGNUP } = sendOtpDto;
+  async sendOtp(sendOtpDto: { email: string; type?: OtpTypesType }) {
+    const { email, type = OtpTypes.SIGNUP } = sendOtpDto;
 
     // Check if email already exists in auth entity
     const existingUser = await this.authRepository.findOne({
@@ -423,12 +416,12 @@ export class AuthService {
     });
 
     // For SIGNUP type, email should not exist
-    if (type === OtpTypeEnum.SIGNUP && existingUser) {
+    if (type === OtpTypes.SIGNUP && existingUser) {
       throw new ConflictException('Email already used with another account');
     }
 
     // For PASSWORD_RESET type, email must exist
-    if (type === OtpTypeEnum.PASSWORD_RESET && !existingUser) {
+    if (type === OtpTypes.PASSWORD_RESET && !existingUser) {
       throw new BadRequestException('No account found with this email');
     }
 
@@ -445,7 +438,7 @@ export class AuthService {
       email,
       otp,
       type,
-      status: OtpStatusEnum.PENDING,
+      status: OtpStatuses.PENDING,
       expiresAt,
     });
 
@@ -453,12 +446,12 @@ export class AuthService {
 
     // Get email template and subject based on type
     const htmlContent =
-      type === OtpTypeEnum.PASSWORD_RESET
+      type === OtpTypes.PASSWORD_RESET
         ? this.getResetPasswordEmailTemplate(name, otp)
         : this.getEmailTemplate(name, otp);
 
     const subject =
-      type === OtpTypeEnum.PASSWORD_RESET
+      type === OtpTypes.PASSWORD_RESET
         ? 'Reset Your Password - Edunexs'
         : 'Verify Your Email - Edunexs';
 

@@ -9,18 +9,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, FindOptionsWhere } from 'typeorm';
 import { AuthEntity } from 'src/database/entities/auth.entity';
 import { InstitutionEntity } from 'src/database/entities/institution.entity';
-import {
-  OtpEntity,
-  OtpStatusEnum,
-  OtpTypeEnum,
-} from 'src/database/entities/otp.entity';
+import { OtpEntity } from 'src/database/entities/otp.entity';
 import { FileEntity } from 'src/database/entities/file.entity';
 import {
   CreateInstitutionAdminDto,
   UpdateInstitutionAdminDto,
   UpdateInstitutionAdminProfileDto,
 } from './dtos';
-import { UserRoleEnum } from 'src/shared/enums';
+import { OtpStatuses, OtpTypes, UserRoles } from 'src/shared/consts';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
 import { hashPassword } from 'src/shared/helpers';
 import { AppwriteStorageService } from 'src/shared/services/appwrite-storage.service';
@@ -62,8 +58,8 @@ export class InstitutionAdminService {
         where: {
           email,
           otp,
-          type: OtpTypeEnum.EMAIL_VERIFICATION,
-          status: OtpStatusEnum.PENDING,
+          type: OtpTypes.EMAIL_VERIFICATION,
+          status: OtpStatuses.PENDING,
         },
         order: { createdAt: 'DESC' },
       });
@@ -74,13 +70,13 @@ export class InstitutionAdminService {
 
       // Check if OTP has expired
       if (otpRecord?.expiresAt && new Date() > otpRecord.expiresAt) {
-        otpRecord.status = OtpStatusEnum.EXPIRED;
+        otpRecord.status = OtpStatuses.EXPIRED;
         await this.otpRepository.save(otpRecord);
         throw new BadRequestException('OTP has expired');
       }
 
       // Mark OTP as verified
-      otpRecord.status = OtpStatusEnum.VERIFIED;
+      otpRecord.status = OtpStatuses.VERIFIED;
       await this.otpRepository.save(otpRecord);
     } else if (email && !otp) {
       throw new BadRequestException('OTP is required when email is provided');
@@ -118,7 +114,7 @@ export class InstitutionAdminService {
       ...(email && { email }),
       password: hashedPassword,
       name,
-      role: UserRoleEnum.INSTITUTION_ADMIN,
+      role: UserRoles.INSTITUTION_ADMIN,
       isActive: true,
       ...(profilePictureFileId && {
         profilePictureFile: { id: profilePictureFileId },
@@ -167,7 +163,7 @@ export class InstitutionAdminService {
 
     // Find the institution admin
     const institutionAdmin = await this.authRepository.findOne({
-      where: { id: institutionAdminId, role: UserRoleEnum.INSTITUTION_ADMIN },
+      where: { id: institutionAdminId, role: UserRoles.INSTITUTION_ADMIN },
     });
 
     if (!institutionAdmin) {
@@ -193,8 +189,8 @@ export class InstitutionAdminService {
         where: {
           email,
           otp,
-          type: OtpTypeEnum.EMAIL_VERIFICATION,
-          status: OtpStatusEnum.PENDING,
+          type: OtpTypes.EMAIL_VERIFICATION,
+          status: OtpStatuses.PENDING,
         },
         order: { createdAt: 'DESC' },
       });
@@ -205,15 +201,15 @@ export class InstitutionAdminService {
           where: {
             email,
             otp,
-            type: OtpTypeEnum.EMAIL_VERIFICATION,
+            type: OtpTypes.EMAIL_VERIFICATION,
           },
           order: { createdAt: 'DESC' },
         });
 
         if (otpWithDifferentStatus) {
-          if (otpWithDifferentStatus.status === OtpStatusEnum.VERIFIED) {
+          if (otpWithDifferentStatus.status === OtpStatuses.VERIFIED) {
             throw new BadRequestException('OTP has already been used');
-          } else if (otpWithDifferentStatus.status === OtpStatusEnum.EXPIRED) {
+          } else if (otpWithDifferentStatus.status === OtpStatuses.EXPIRED) {
             throw new BadRequestException('OTP has expired');
           }
         }
@@ -223,7 +219,7 @@ export class InstitutionAdminService {
 
       // Check if OTP has expired
       if (otpRecord?.expiresAt && new Date() > otpRecord.expiresAt) {
-        otpRecord.status = OtpStatusEnum.EXPIRED;
+        otpRecord.status = OtpStatuses.EXPIRED;
         await this.otpRepository.save(otpRecord);
         throw new BadRequestException('OTP has expired');
       }
@@ -238,7 +234,7 @@ export class InstitutionAdminService {
       }
 
       // Mark OTP as verified
-      otpRecord.status = OtpStatusEnum.VERIFIED;
+      otpRecord.status = OtpStatuses.VERIFIED;
       await this.otpRepository.save(otpRecord);
     }
 
@@ -251,8 +247,8 @@ export class InstitutionAdminService {
     }
     if (profilePictureFileId !== undefined) {
       institutionAdmin.profilePictureFile = profilePictureFileId
-        ? ({ id: profilePictureFileId } as any)
-        : null;
+        ? ({ id: profilePictureFileId } as FileEntity)
+        : undefined;
     }
 
     try {
@@ -285,7 +281,7 @@ export class InstitutionAdminService {
     const institutionAdmin = await this.authRepository.findOne({
       where: {
         id: institutionAdminId,
-        role: UserRoleEnum.INSTITUTION_ADMIN,
+        role: UserRoles.INSTITUTION_ADMIN,
       },
     });
 
@@ -305,8 +301,8 @@ export class InstitutionAdminService {
         where: {
           email,
           otp,
-          type: OtpTypeEnum.SIGNUP,
-          status: OtpStatusEnum.PENDING,
+          type: OtpTypes.SIGNUP,
+          status: OtpStatuses.PENDING,
         },
         order: { createdAt: 'DESC' },
       });
@@ -317,7 +313,7 @@ export class InstitutionAdminService {
 
       // Check if OTP has expired
       if (otpRecord?.expiresAt && new Date() > otpRecord.expiresAt) {
-        otpRecord.status = OtpStatusEnum.EXPIRED;
+        otpRecord.status = OtpStatuses.EXPIRED;
         await this.otpRepository.save(otpRecord);
         throw new BadRequestException('OTP has expired');
       }
@@ -332,7 +328,7 @@ export class InstitutionAdminService {
       }
 
       // Mark OTP as verified
-      otpRecord.status = OtpStatusEnum.VERIFIED;
+      otpRecord.status = OtpStatuses.VERIFIED;
       await this.otpRepository.save(otpRecord);
     }
 
@@ -378,7 +374,7 @@ export class InstitutionAdminService {
 
     // Build where clause
     const where: FindOptionsWhere<AuthEntity> = {
-      role: UserRoleEnum.INSTITUTION_ADMIN,
+      role: UserRoles.INSTITUTION_ADMIN,
     };
 
     if (filters && typeof filters === 'object') {
@@ -461,7 +457,7 @@ export class InstitutionAdminService {
     const institutionAdmin = await this.authRepository.findOne({
       where: {
         id: institutionAdminId,
-        role: UserRoleEnum.INSTITUTION_ADMIN,
+        role: UserRoles.INSTITUTION_ADMIN,
       },
     });
 

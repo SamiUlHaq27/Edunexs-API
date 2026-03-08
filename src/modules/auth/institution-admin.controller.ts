@@ -1,15 +1,15 @@
 import { Body, Controller, Delete, Post, Put, Version } from '@nestjs/common';
 import { InstitutionAdminService } from './institution-admin.service';
-import {
-  CreateInstitutionAdminDto,
-  UpdateInstitutionAdminDto,
-  UpdateInstitutionAdminProfileDto,
-  DeleteInstitutionAdminDto,
-} from './dtos';
 import { AllowedRoles } from 'src/shared/reflectors';
-import { UserRoleEnum } from 'src/shared/enums';
+import { UserRoles } from 'src/shared/consts';
 import { User } from 'src/shared/pipes';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
+import {
+  CreateInstitutionAdminDto,
+  DeleteInstitutionAdminDto,
+  UpdateInstitutionAdminDto,
+  UpdateInstitutionAdminProfileDto,
+} from './dtos';
 
 @Controller('institution-admin')
 export class InstitutionAdminController {
@@ -18,7 +18,7 @@ export class InstitutionAdminController {
   ) {}
 
   @Version('1')
-  @AllowedRoles([UserRoleEnum.INSITUTION_OWNER])
+  @AllowedRoles([UserRoles.INSTITUTION_OWNER])
   @Post()
   async create(
     @Body() createInstitutionAdminDto: CreateInstitutionAdminDto,
@@ -31,7 +31,7 @@ export class InstitutionAdminController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoleEnum.INSITUTION_OWNER])
+  @AllowedRoles([UserRoles.INSTITUTION_OWNER])
   @Post('all')
   async findAll(
     @Body() listFiltersDto: ListFiltersDto,
@@ -41,7 +41,7 @@ export class InstitutionAdminController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoleEnum.INSITUTION_OWNER])
+  @AllowedRoles([UserRoles.INSTITUTION_OWNER])
   @Put()
   async update(
     @Body() updateInstitutionAdminDto: UpdateInstitutionAdminDto,
@@ -55,7 +55,7 @@ export class InstitutionAdminController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoleEnum.INSITUTION_OWNER])
+  @AllowedRoles([UserRoles.INSTITUTION_OWNER])
   @Delete()
   async delete(
     @Body() deleteInstitutionAdminDto: DeleteInstitutionAdminDto,
@@ -68,7 +68,7 @@ export class InstitutionAdminController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoleEnum.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
   @Put('profile/me')
   async updateProfile(
     @Body() updateInstitutionAdminProfileDto: UpdateInstitutionAdminProfileDto,

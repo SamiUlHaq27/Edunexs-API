@@ -1,4 +1,3 @@
-import { UserRoleEnum } from 'src/shared/enums';
 import {
   Column,
   CreateDateColumn,
@@ -10,6 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { FileEntity } from './file.entity';
+import type { UserRolesType } from 'src/shared/types/user.type';
 
 @Entity({ name: 'tbl_auth' })
 export class AuthEntity {
@@ -33,7 +33,7 @@ export class AuthEntity {
   profilePictureFile?: FileEntity;
 
   @Column({ type: 'character varying' })
-  role: UserRoleEnum;
+  role: UserRolesType;
 
   @Column({ default: true })
   isActive: boolean;
