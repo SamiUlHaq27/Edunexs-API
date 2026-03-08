@@ -1,13 +1,13 @@
 {
-  "name": "Edunexs-Backend",
-  "version": "0.0.1",
+  "name": "edunexs-backend",
+  "version": "0.1.0",
   "description": "",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
   "engines": {
-    "node": "22.x",
-    "npm": "10.x"
+    "node": "24.x",
+    "npm": "11.x"
   },
   "scripts": {
     "build": "nest build",
@@ -25,9 +25,11 @@
     "migration:generate": "npx ts-node -P ./tsconfig.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d ./src/config/typeorm.config.ts ./src/database/migrations/migration",
     "migration:create": "npx ts-node -P ./tsconfig.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:create -d ./src/config/typeorm.config.ts ./src/database/migrations/migration",
     "migration:run": "npx ts-node -P ./tsconfig.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d ./src/config/typeorm.config.ts",
-    "migration:revert": "npx ts-node -P ./tsconfig.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d ./src/config/typeorm.config.ts"
+    "migration:revert": "npx ts-node -P ./tsconfig.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d ./src/config/typeorm.config.ts",
+    "acr:push": "docker build -t edunexs-backend:$VERSION . && docker login edxacr.azurecr.io --username $DOCKER_USERNAME --password $DOCKER_PASSWORD && docker tag edunexs-backend:$VERSION edxacr.azurecr.io/edunexs-backend:$VERSION && docker push edxacr.azurecr.io/edunexs-backend:$VERSION"
   },
   "dependencies": {
+    "@dopplerhq/node-sdk": "^1.3.0",
     "@getbrevo/brevo": "^3.0.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",

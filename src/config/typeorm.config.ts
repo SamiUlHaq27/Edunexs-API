@@ -11,7 +11,7 @@ const AppDataSource = new DataSource({
   ssl: true,
   extra: { ssl: { rejectUnauthorized: false } },
   synchronize: false,
-  entities: ['src/database/entities/*.entity.ts'],
+  entities: ['src/database/entities/*.entity.{js, ts}'],
   migrations: ['src/database/migrations/*-migration.ts'],
   migrationsRun: false,
   logging: false,
