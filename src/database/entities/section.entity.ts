@@ -3,6 +3,7 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -12,19 +13,16 @@ import {
 import { InstitutionEntity } from './institution.entity';
 import { SectionOfferingEntity } from './section-offering.entity';
 
-@Entity({ name: 'tbl_course' })
-export class CourseEntity {
+@Entity({ name: 'tbl_section' })
+@Index('UQ_tbl_section_institution_name', ['institution', 'name'], {
+  unique: true,
+})
+export class SectionEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'varchar', length: 30 })
-  code: string;
-
-  @Column({ type: 'varchar', length: 150 })
-  title: string;
-
-  @Column({ type: 'text', nullable: true })
-  description?: string;
+  @Column({ type: 'varchar', length: 100 })
+  name: string;
 
   @Column({ default: true })
   isActive: boolean;
@@ -33,8 +31,8 @@ export class CourseEntity {
   @JoinColumn({ name: 'institutionPrefix', referencedColumnName: 'prefix' })
   institution: InstitutionEntity;
 
-  @OneToMany(() => SectionOfferingEntity, (offering) => offering.course)
-  sectionOfferings: SectionOfferingEntity[];
+  @OneToMany(() => SectionOfferingEntity, (offering) => offering.section)
+  offerings: SectionOfferingEntity[];
 
   @CreateDateColumn()
   createdAt: Date;

@@ -3,6 +3,7 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  OneToMany,
   OneToOne,
   JoinColumn,
   PrimaryGeneratedColumn,
@@ -10,6 +11,7 @@ import {
 } from 'typeorm';
 import { FileEntity } from './file.entity';
 import type { UserRolesType } from 'src/shared/types/user.type';
+import { SectionOfferingEntity } from './section-offering.entity';
 
 @Entity({ name: 'tbl_auth' })
 export class AuthEntity {
@@ -37,6 +39,9 @@ export class AuthEntity {
 
   @Column({ default: true })
   isActive: boolean;
+
+  @OneToMany(() => SectionOfferingEntity, (offering) => offering.teacher)
+  teacherSectionOfferings: SectionOfferingEntity[];
 
   @CreateDateColumn()
   createdAt: Date;

@@ -9,10 +9,10 @@ import { AuthEntity, FileEntity } from 'src/database/entities';
 import { UserRoles } from 'src/shared/consts';
 import { ListFiltersDto } from 'src/shared/dtos';
 import { hashPassword } from 'src/shared/helpers';
+import { InstitutionContextService } from 'src/shared/services';
 import { UserData } from 'src/shared/types';
 import { FindOptionsWhere, Like, Repository } from 'typeorm';
 import { CreateTeacherDto, DeleteTeacherDto, UpdateTeacherDto } from './dtos';
-import { InstitutionContextService } from './institution-context.service';
 
 @Injectable()
 export class TeacherService {

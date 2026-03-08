@@ -14,12 +14,12 @@ import {
 import { UserRoles } from 'src/shared/consts';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
 import { hashPassword } from 'src/shared/helpers';
+import { InstitutionContextService } from 'src/shared/services';
 import { UserData } from 'src/shared/types';
 import { Repository } from 'typeorm';
 import { CreateStudentDto } from './dtos/create-student.dto';
 import { DeleteStudentDto } from './dtos/delete-student.dto';
 import { UpdateStudentDto } from './dtos/update-student.dto';
-import { InstitutionContextService } from './institution-context.service';
 
 @Injectable()
 export class StudentService {

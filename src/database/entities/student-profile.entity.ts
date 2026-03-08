@@ -11,6 +11,7 @@ import {
   Column,
 } from 'typeorm';
 import { AuthEntity } from './auth.entity';
+import { SectionOfferingEntity } from './section-offering.entity';
 import { InstitutionEntity } from './institution.entity';
 import { StudentGroupEntity } from './student-group.entity';
 
@@ -35,6 +36,9 @@ export class StudentProfileEntity {
 
   @ManyToMany(() => StudentGroupEntity, (studentGroup) => studentGroup.students)
   studentGroups: StudentGroupEntity[];
+
+  @ManyToMany(() => SectionOfferingEntity, (offering) => offering.students)
+  sectionOfferings: SectionOfferingEntity[];
 
   @CreateDateColumn()
   createdAt: Date;

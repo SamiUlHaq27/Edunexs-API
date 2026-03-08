@@ -5,3 +5,5 @@ export * from './otp.entity';
 export * from './course.entity';
 export * from './student-profile.entity';
 export * from './student-group.entity';
+export * from './section.entity';
+export * from './section-offering.entity';

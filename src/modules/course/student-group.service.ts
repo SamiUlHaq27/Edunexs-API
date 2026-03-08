@@ -11,12 +11,12 @@ import {
 } from 'src/database/entities';
 import { UserRoles } from 'src/shared/consts';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
+import { InstitutionContextService } from 'src/shared/services';
 import { UserData } from 'src/shared/types';
 import { FindOptionsWhere, In, Like, Repository } from 'typeorm';
 import { CreateStudentGroupDto } from './dtos/create-student-group.dto';
 import { DeleteStudentGroupDto } from './dtos/delete-student-group.dto';
 import { UpdateStudentGroupDto } from './dtos/update-student-group.dto';
-import { InstitutionContextService } from './institution-context.service';
 
 @Injectable()
 export class StudentGroupService {
