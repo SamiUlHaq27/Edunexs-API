@@ -4,6 +4,7 @@ import { AllowedRoles } from 'src/shared/reflectors';
 import { UserRoles } from 'src/shared/consts';
 import { User } from 'src/shared/pipes';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
+import type { UserData } from 'src/shared/types';
 import {
   CreateInstitutionAdminDto,
   DeleteInstitutionAdminDto,
@@ -22,11 +23,11 @@ export class InstitutionAdminController {
   @Post()
   async create(
     @Body() createInstitutionAdminDto: CreateInstitutionAdminDto,
-    @User('authId') authId: number,
+    @User() user: UserData,
   ) {
     return await this.institutionAdminService.create(
       createInstitutionAdminDto,
-      authId,
+      user,
     );
   }
 
@@ -35,9 +36,9 @@ export class InstitutionAdminController {
   @Post('all')
   async findAll(
     @Body() listFiltersDto: ListFiltersDto,
-    @User('authId') authId: number,
+    @User() user: UserData,
   ) {
-    return await this.institutionAdminService.findAll(authId, listFiltersDto);
+    return await this.institutionAdminService.findAll(user, listFiltersDto);
   }
 
   @Version('1')
@@ -45,12 +46,12 @@ export class InstitutionAdminController {
   @Put()
   async update(
     @Body() updateInstitutionAdminDto: UpdateInstitutionAdminDto,
-    @User('authId') authId: number,
+    @User() user: UserData,
   ) {
     return await this.institutionAdminService.update(
       updateInstitutionAdminDto.institutionAdminId,
       updateInstitutionAdminDto,
-      authId,
+      user,
     );
   }
 
@@ -59,11 +60,11 @@ export class InstitutionAdminController {
   @Delete()
   async delete(
     @Body() deleteInstitutionAdminDto: DeleteInstitutionAdminDto,
-    @User('authId') authId: number,
+    @User() user: UserData,
   ) {
     return await this.institutionAdminService.delete(
       deleteInstitutionAdminDto.institutionAdminId,
-      authId,
+      user,
     );
   }
 

@@ -12,6 +12,7 @@ import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { AuthEntity } from 'src/database/entities/auth.entity';
 import { FileEntity } from 'src/database/entities/file.entity';
+import { InstitutionEntity } from 'src/database/entities/institution.entity';
 import { OtpEntity } from 'src/database/entities/otp.entity';
 import { OtpStatuses, OtpTypes, UserRoles } from 'src/shared/consts';
 import { SignupDto, LoginDto, ResetPasswordDto, UploadFileDto } from './dtos';
@@ -32,6 +33,8 @@ export class AuthService {
   constructor(
     @InjectRepository(AuthEntity)
     private readonly authRepository: Repository<AuthEntity>,
+    @InjectRepository(InstitutionEntity)
+    private readonly institutionRepository: Repository<InstitutionEntity>,
     @InjectRepository(OtpEntity)
     private readonly otpRepository: Repository<OtpEntity>,
     @InjectRepository(FileEntity)
@@ -140,6 +143,32 @@ export class AuthService {
     return otpRecord;
   }
 
+  private async resolveInstitutionIdForUser(user: AuthEntity) {
+    if (!user) {
+      return null;
+    }
+
+    if (user.role === UserRoles.INSTITUTION_OWNER) {
+      const institution = await this.institutionRepository.findOne({
+        where: { owner: { id: user.id } },
+        relations: ['owner'],
+      });
+
+      return institution?.prefix ?? null;
+    }
+
+    const usernamePrefix = user.username?.split('_')?.[0];
+    if (!usernamePrefix) {
+      return null;
+    }
+
+    const institution = await this.institutionRepository.findOne({
+      where: { prefix: usernamePrefix },
+    });
+
+    return institution?.prefix ?? null;
+  }
+
   async signup(signupDto: SignupDto, profilePictureFile?: Express.Multer.File) {
     const { email, password, name, otp } = signupDto;
 
@@ -227,10 +256,12 @@ export class AuthService {
       }
 
       // Generate JWT token
+      const institutionId = await this.resolveInstitutionIdForUser(savedUser);
       const payload: UserData = {
         authId: savedUser.id,
         username: savedUser.email,
         role: savedUser.role,
+        institutionId,
       };
 
       const accessToken = this.jwtService.sign(payload);
@@ -245,6 +276,7 @@ export class AuthService {
             profilePictureFileData,
           ),
           role: savedUser?.role,
+          institutionId,
           isActive: savedUser?.isActive,
           createdAt: savedUser?.createdAt,
         },
@@ -289,10 +321,12 @@ export class AuthService {
     }
 
     // Generate JWT token
+    const institutionId = await this.resolveInstitutionIdForUser(user);
     const payload: UserData = {
       authId: user.id,
       username: user.email,
       role: user.role,
+      institutionId,
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -307,6 +341,7 @@ export class AuthService {
           user?.profilePictureFile,
         ),
         role: user?.role,
+        institutionId,
         isActive: user?.isActive,
         createdAt: user?.createdAt,
       },

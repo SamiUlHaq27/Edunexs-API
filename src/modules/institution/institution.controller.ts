@@ -20,6 +20,7 @@ import { AllowedRoles } from 'src/shared/reflectors';
 import { UserRoles } from 'src/shared/consts';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
 import { User } from 'src/shared/pipes';
+import type { UserData } from 'src/shared/types';
 
 @Controller('institution')
 export class InstitutionController {
@@ -30,9 +31,9 @@ export class InstitutionController {
   @Post()
   async create(
     @Body() createInstitutionDto: CreateInstitutionDto,
-    @User('authId') authId: number,
+    @User() user: UserData,
   ) {
-    return this.institutionService.create(createInstitutionDto, authId);
+    return this.institutionService.create(createInstitutionDto, user);
   }
 
   @Version('1')
@@ -58,8 +59,8 @@ export class InstitutionController {
   @Version('1')
   @AllowedRoles([UserRoles.INSTITUTION_OWNER])
   @Get('my-institution')
-  async getMyInstitution(@User('authId') authId: number) {
-    return await this.institutionService.findByOwnerId(authId);
+  async getMyInstitution(@User() user: UserData) {
+    return await this.institutionService.findByOwner(user);
   }
 
   @Version('1')
@@ -67,9 +68,9 @@ export class InstitutionController {
   @Put()
   async update(
     @Body() updateInstitutionDto: UpdateInstitutionDto,
-    @User('authId') authId: number,
+    @User() user: UserData,
   ) {
-    return await this.institutionService.update(authId, updateInstitutionDto);
+    return await this.institutionService.update(user, updateInstitutionDto);
   }
 
   @Version('1')
@@ -82,12 +83,12 @@ export class InstitutionController {
   )
   async uploadLogo(
     @UploadedFile() logoFile: Express.Multer.File,
-    @User('authId') authId: number,
+    @User() user: UserData,
   ) {
     if (!logoFile) {
       throw new BadRequestException('No file provided');
     }
 
-    return this.institutionService.uploadLogo(authId, logoFile);
+    return this.institutionService.uploadLogo(user, logoFile);
   }
 }

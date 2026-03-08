@@ -5,6 +5,7 @@ import { User } from 'src/shared/pipes';
 import { CourseService } from './course.service';
 import { CreateCourseDto, DeleteCourseDto, UpdateCourseDto } from './dtos';
 import { ListFiltersDto } from 'src/shared/dtos';
+import type { UserData } from 'src/shared/types';
 
 @Controller('course')
 export class CourseController {
@@ -15,19 +16,16 @@ export class CourseController {
   @Post()
   async create(
     @Body() createCourseDto: CreateCourseDto,
-    @User('authId') authId: number,
+    @User() user: UserData,
   ) {
-    return await this.courseService.create(createCourseDto, authId);
+    return await this.courseService.create(createCourseDto, user);
   }
 
   @Version('1')
   @AllowedRoles([UserRoles.INSTITUTION_OWNER, UserRoles.INSTITUTION_ADMIN])
   @Post('all')
-  async list(
-    @Body() getCourses: ListFiltersDto,
-    @User('authId') authId: number,
-  ) {
-    return await this.courseService.list(getCourses, authId);
+  async list(@Body() getCourses: ListFiltersDto, @User() user: UserData) {
+    return await this.courseService.list(getCourses, user);
   }
 
   @Version('1')
@@ -35,9 +33,9 @@ export class CourseController {
   @Put()
   async update(
     @Body() updateCourseDto: UpdateCourseDto,
-    @User('authId') authId: number,
+    @User() user: UserData,
   ) {
-    return await this.courseService.update(updateCourseDto, authId);
+    return await this.courseService.update(updateCourseDto, user);
   }
 
   @Version('1')
@@ -45,8 +43,8 @@ export class CourseController {
   @Delete()
   async delete(
     @Body() deleteCourseDto: DeleteCourseDto,
-    @User('authId') authId: number,
+    @User() user: UserData,
   ) {
-    return await this.courseService.delete(deleteCourseDto, authId);
+    return await this.courseService.delete(deleteCourseDto, user);
   }
 }

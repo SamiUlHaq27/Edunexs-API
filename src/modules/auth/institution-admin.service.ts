@@ -7,10 +7,12 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, FindOptionsWhere } from 'typeorm';
-import { AuthEntity } from 'src/database/entities/auth.entity';
-import { InstitutionEntity } from 'src/database/entities/institution.entity';
-import { OtpEntity } from 'src/database/entities/otp.entity';
-import { FileEntity } from 'src/database/entities/file.entity';
+import {
+  AuthEntity,
+  FileEntity,
+  InstitutionEntity,
+  OtpEntity,
+} from 'src/database/entities';
 import {
   CreateInstitutionAdminDto,
   UpdateInstitutionAdminDto,
@@ -21,6 +23,12 @@ import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
 import { hashPassword } from 'src/shared/helpers';
 import { AppwriteStorageService } from 'src/shared/services/appwrite-storage.service';
 
+type OwnerContextUser = {
+  authId: number;
+  role: string;
+  institutionId?: string | null;
+};
+
 @Injectable()
 export class InstitutionAdminService {
   constructor(
@@ -30,21 +38,23 @@ export class InstitutionAdminService {
     private readonly institutionRepository: Repository<InstitutionEntity>,
     @InjectRepository(OtpEntity)
     private readonly otpRepository: Repository<OtpEntity>,
+    @InjectRepository(FileEntity)
+    private readonly fileRepository: Repository<FileEntity>,
     private readonly appwriteStorageService: AppwriteStorageService,
   ) {}
 
   async create(
     createInstitutionAdminDto: CreateInstitutionAdminDto,
-    ownerId: number,
+    user: OwnerContextUser,
   ) {
     const { username, password, name, email, otp, profilePictureFileId } =
       createInstitutionAdminDto;
 
     // Verify the owner has an institution
-    const institution = await this.institutionRepository.findOne({
-      where: { owner: { id: ownerId } },
-      relations: ['owner'],
-    });
+    const institution = await this.getOwnerInstitution(
+      user,
+      'You must have an institution to create institution admins',
+    );
 
     if (!institution) {
       throw new NotFoundException(
@@ -144,16 +154,16 @@ export class InstitutionAdminService {
   async update(
     institutionAdminId: number,
     updateInstitutionAdminDto: UpdateInstitutionAdminDto,
-    ownerId: number,
+    user: OwnerContextUser,
   ) {
     const { password, name, email, otp, isActive, profilePictureFileId } =
       updateInstitutionAdminDto;
 
     // Verify the owner has an institution
-    const institution = await this.institutionRepository.findOne({
-      where: { owner: { id: ownerId } },
-      relations: ['owner'],
-    });
+    const institution = await this.getOwnerInstitution(
+      user,
+      'You must have an institution to update institution admins',
+    );
 
     if (!institution) {
       throw new NotFoundException(
@@ -356,15 +366,15 @@ export class InstitutionAdminService {
     }
   }
 
-  async findAll(ownerId: number, listFiltersDto: ListFiltersDto) {
+  async findAll(user: OwnerContextUser, listFiltersDto: ListFiltersDto) {
     const { page, size, filters } = listFiltersDto;
     const skip = (page - 1) * size;
 
     // Verify the owner has an institution
-    const institution = await this.institutionRepository.findOne({
-      where: { owner: { id: ownerId } },
-      relations: ['owner'],
-    });
+    const institution = await this.getOwnerInstitution(
+      user,
+      'You must have an institution to view institution admins',
+    );
 
     if (!institution) {
       throw new NotFoundException(
@@ -440,12 +450,12 @@ export class InstitutionAdminService {
     };
   }
 
-  async delete(institutionAdminId: number, ownerId: number) {
+  async delete(institutionAdminId: number, user: OwnerContextUser) {
     // Verify the owner has an institution
-    const institution = await this.institutionRepository.findOne({
-      where: { owner: { id: ownerId } },
-      relations: ['owner'],
-    });
+    const institution = await this.getOwnerInstitution(
+      user,
+      'You must have an institution to delete institution admins',
+    );
 
     if (!institution) {
       throw new NotFoundException(
@@ -500,5 +510,42 @@ export class InstitutionAdminService {
       fileId: fileEntity.fileId,
       publicUrl,
     };
+  }
+
+  private async getOwnerInstitution(
+    user: OwnerContextUser,
+    notFoundMessage: string,
+  ) {
+    const institutionId: string | null | undefined = user.institutionId;
+
+    if (typeof institutionId === 'string' && institutionId.length > 0) {
+      const where: FindOptionsWhere<InstitutionEntity> =
+        user.role === UserRoles.INSTITUTION_OWNER
+          ? {
+              prefix: institutionId,
+              owner: { id: user.authId },
+            }
+          : { prefix: institutionId };
+
+      const institutionByToken = await this.institutionRepository.findOne({
+        where,
+        relations: ['owner'],
+      });
+
+      if (institutionByToken) {
+        return institutionByToken;
+      }
+    }
+
+    const institution = await this.institutionRepository.findOne({
+      where: { owner: { id: user.authId } },
+      relations: ['owner'],
+    });
+
+    if (!institution) {
+      throw new NotFoundException(notFoundMessage);
+    }
+
+    return institution;
   }
 }

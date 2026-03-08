@@ -21,6 +21,7 @@ import { AppwriteStorageService } from 'src/shared/services/appwrite-storage.ser
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as Handlebars from 'handlebars';
+import type { UserData } from 'src/shared/types/request.type';
 
 @Injectable()
 export class InstitutionService {
@@ -35,14 +36,11 @@ export class InstitutionService {
     private readonly appwriteStorageService: AppwriteStorageService,
   ) {}
 
-  async create(createInstitutionDto: CreateInstitutionDto, authId: number) {
+  async create(createInstitutionDto: CreateInstitutionDto, user: UserData) {
     const { prefix, name, city, country, address } = createInstitutionDto;
 
     // Check if owner already has an institution
-    const ownerInstitution = await this.institutionRepository.findOne({
-      where: { owner: { id: authId } },
-      relations: ['owner'],
-    });
+    const ownerInstitution = await this.findInstitutionForOwner(user);
 
     if (ownerInstitution) {
       throw new ForbiddenException(
@@ -68,7 +66,7 @@ export class InstitutionService {
       city,
       country,
       address,
-      owner: { id: authId },
+      owner: { id: user.authId },
     });
 
     try {
@@ -165,11 +163,11 @@ export class InstitutionService {
     };
   }
 
-  async findByOwnerId(authId: number) {
-    const institution = await this.institutionRepository.findOne({
-      where: { owner: { id: authId } },
-      relations: ['owner', 'logoFile'],
-    });
+  async findByOwner(user: UserData) {
+    const institution = await this.findInstitutionForOwner(user, [
+      'owner',
+      'logoFile',
+    ]);
 
     if (!institution) {
       throw new NotFoundException('Institution not found');
@@ -204,10 +202,8 @@ export class InstitutionService {
     };
   }
 
-  async update(authId: number, updateInstitutionDto: UpdateInstitutionDto) {
-    const institution = await this.institutionRepository.findOne({
-      where: { owner: { id: authId } },
-    });
+  async update(user: UserData, updateInstitutionDto: UpdateInstitutionDto) {
+    const institution = await this.findInstitutionForOwner(user);
 
     if (!institution) {
       throw new NotFoundException('Institution not found');
@@ -320,12 +316,9 @@ export class InstitutionService {
     }
   }
 
-  async uploadLogo(authId: number, logoFile: Express.Multer.File) {
-    // Find institution by owner ID
-    const institution = await this.institutionRepository.findOne({
-      where: { owner: { id: authId } },
-      relations: ['logoFile'],
-    });
+  async uploadLogo(user: UserData, logoFile: Express.Multer.File) {
+    // Find institution by token institutionId first, then owner fallback
+    const institution = await this.findInstitutionForOwner(user, ['logoFile']);
 
     if (!institution) {
       throw new NotFoundException(
@@ -391,5 +384,29 @@ export class InstitutionService {
       }
       throw new InternalServerErrorException('Failed to upload logo');
     }
+  }
+
+  private async findInstitutionForOwner(
+    user: UserData,
+    relations: string[] = [],
+  ) {
+    if (user.institutionId) {
+      const byToken = await this.institutionRepository.findOne({
+        where: {
+          prefix: user.institutionId,
+          owner: { id: user.authId },
+        },
+        relations,
+      });
+
+      if (byToken) {
+        return byToken;
+      }
+    }
+
+    return await this.institutionRepository.findOne({
+      where: { owner: { id: user.authId } },
+      relations,
+    });
   }
 }

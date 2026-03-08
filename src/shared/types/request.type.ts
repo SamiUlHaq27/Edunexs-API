@@ -7,4 +7,5 @@ export type UserData = {
   authId: number;
   username: string;
   role: UserRolesType;
+  institutionId?: string | null;
 };

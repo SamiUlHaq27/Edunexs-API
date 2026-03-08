@@ -3,3 +3,5 @@ export * from './institution.entity';
 export * from './file.entity';
 export * from './otp.entity';
 export * from './course.entity';
+export * from './student-profile.entity';
+export * from './student-group.entity';

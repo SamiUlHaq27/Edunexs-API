@@ -7,28 +7,23 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Like, Repository } from 'typeorm';
-import {
-  AuthEntity,
-  CourseEntity,
-  InstitutionEntity,
-} from 'src/database/entities';
+import { CourseEntity } from 'src/database/entities';
 import { UserRoles } from 'src/shared/consts';
 import { CreateCourseDto, DeleteCourseDto, UpdateCourseDto } from './dtos';
 import { ListFiltersDto } from 'src/shared/dtos';
+import { UserData } from 'src/shared/types';
+import { InstitutionContextService } from './institution-context.service';
 
 @Injectable()
 export class CourseService {
   constructor(
     @InjectRepository(CourseEntity)
     private readonly courseRepository: Repository<CourseEntity>,
-    @InjectRepository(AuthEntity)
-    private readonly authRepository: Repository<AuthEntity>,
-    @InjectRepository(InstitutionEntity)
-    private readonly institutionRepository: Repository<InstitutionEntity>,
+    private readonly institutionContextService: InstitutionContextService,
   ) {}
 
-  async create(createCourseDto: CreateCourseDto, authId: number) {
-    const managerInstitution = await this.getManagerInstitution(authId);
+  async create(createCourseDto: CreateCourseDto, user: UserData) {
+    const managerInstitution = await this.getManagerInstitution(user);
     const { code, title, description } = createCourseDto;
 
     const existingCourse = await this.courseRepository.findOne({
@@ -70,8 +65,8 @@ export class CourseService {
     }
   }
 
-  async list(getCoursesFilters: ListFiltersDto, authId: number) {
-    const managerInstitution = await this.getManagerInstitution(authId);
+  async list(getCoursesFilters: ListFiltersDto, user: UserData) {
+    const managerInstitution = await this.getManagerInstitution(user);
     const { page, size, filters } = getCoursesFilters;
     const skip = (page - 1) * size;
 
@@ -117,8 +112,8 @@ export class CourseService {
     };
   }
 
-  async update(updateCourseDto: UpdateCourseDto, authId: number) {
-    const managerInstitution = await this.getManagerInstitution(authId);
+  async update(updateCourseDto: UpdateCourseDto, user: UserData) {
+    const managerInstitution = await this.getManagerInstitution(user);
     const { courseId, code, title, description, isActive } = updateCourseDto;
 
     const course = await this.courseRepository.findOne({
@@ -174,8 +169,8 @@ export class CourseService {
     }
   }
 
-  async delete(deleteCourseDto: DeleteCourseDto, authId: number) {
-    const managerInstitution = await this.getManagerInstitution(authId);
+  async delete(deleteCourseDto: DeleteCourseDto, user: UserData) {
+    const managerInstitution = await this.getManagerInstitution(user);
     const { courseId } = deleteCourseDto;
 
     const course = await this.courseRepository.findOne({
@@ -205,54 +200,15 @@ export class CourseService {
     }
   }
 
-  private async getManagerInstitution(authId: number) {
-    const authUser = await this.authRepository.findOne({
-      where: { id: authId },
-    });
-
-    if (!authUser) {
-      throw new NotFoundException('User not found');
-    }
-
+  private async getManagerInstitution(user: UserData) {
     if (
-      authUser.role !== UserRoles.INSTITUTION_OWNER &&
-      authUser.role !== UserRoles.INSTITUTION_ADMIN
+      user.role !== UserRoles.INSTITUTION_OWNER &&
+      user.role !== UserRoles.INSTITUTION_ADMIN
     ) {
       throw new ForbiddenException(
         'You are not allowed to manage institution courses',
       );
     }
-
-    if (authUser.role === UserRoles.INSTITUTION_OWNER) {
-      const institution = await this.institutionRepository.findOne({
-        where: { owner: { id: authId } },
-        relations: ['owner'],
-      });
-
-      if (!institution) {
-        throw new NotFoundException(
-          'You must have an institution to manage courses',
-        );
-      }
-
-      return institution;
-    }
-
-    const usernamePrefix = authUser.username?.split('_')?.[0];
-    if (!usernamePrefix) {
-      throw new ForbiddenException(
-        'Institution admin account is not linked to an institution',
-      );
-    }
-
-    const institution = await this.institutionRepository.findOne({
-      where: { prefix: usernamePrefix },
-    });
-
-    if (!institution) {
-      throw new NotFoundException('Institution not found for this admin');
-    }
-
-    return institution;
+    return await this.institutionContextService.getManagerInstitution(user);
   }
 }
