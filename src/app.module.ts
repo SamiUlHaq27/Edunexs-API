@@ -20,7 +20,7 @@ export class AppModule implements NestModule {
         '/v1/auth/login',
         '/v1/auth/send-otp',
         '/v1/auth/verify-otp',
-        '/',
+        '/v1',
       )
       .forRoutes('*path');
   }
