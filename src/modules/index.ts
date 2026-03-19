@@ -3,6 +3,7 @@ import { CourseModule } from './course/course.module';
 import { InstitutionModule } from './institution/institution.module';
 import { SectionModule } from './section/section.module';
 import { AttendanceModule } from './attendance/attendance.module';
+import { AssessmentModule } from './assessment/assessment.module';
 
 export const AllModules = [
   AuthModule,
@@ -10,4 +11,5 @@ export const AllModules = [
   CourseModule,
   SectionModule,
   AttendanceModule,
+  AssessmentModule,
 ];
