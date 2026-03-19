@@ -12,9 +12,13 @@ import {
   FileEntity,
   InstitutionEntity,
   OtpEntity,
+  ParentLoginEntity,
+  StudentProfileEntity,
 } from 'src/database/entities';
 import {
+  CreateParentLoginDto,
   CreateInstitutionAdminDto,
+  ResetParentPasswordDto,
   UpdateInstitutionAdminDto,
   UpdateInstitutionAdminProfileDto,
 } from '../dtos';
@@ -40,6 +44,10 @@ export class InstitutionAdminService {
     private readonly otpRepository: Repository<OtpEntity>,
     @InjectRepository(FileEntity)
     private readonly fileRepository: Repository<FileEntity>,
+    @InjectRepository(ParentLoginEntity)
+    private readonly parentLoginRepository: Repository<ParentLoginEntity>,
+    @InjectRepository(StudentProfileEntity)
+    private readonly studentProfileRepository: Repository<StudentProfileEntity>,
     private readonly appwriteStorageService: AppwriteStorageService,
   ) {}
 
@@ -494,6 +502,112 @@ export class InstitutionAdminService {
       throw new InternalServerErrorException(
         'Failed to delete institution admin',
       );
+    }
+  }
+
+  async createParentLogin(
+    createParentLoginDto: CreateParentLoginDto,
+    user: OwnerContextUser,
+  ) {
+    const { studentId, password, isEnabled } = createParentLoginDto;
+
+    const institution = await this.getOwnerInstitution(
+      user,
+      'You must belong to an institution to create parent logins',
+    );
+
+    const studentProfile = await this.studentProfileRepository.findOne({
+      where: {
+        student: { id: studentId },
+        institution: { prefix: institution.prefix },
+      },
+      relations: ['student', 'institution'],
+    });
+
+    if (!studentProfile || studentProfile.student.role !== UserRoles.STUDENT) {
+      throw new NotFoundException('Student not found in your institution');
+    }
+
+    const existingParentLogin = await this.parentLoginRepository.findOne({
+      where: { student: { id: studentId } },
+      relations: ['student'],
+    });
+
+    if (existingParentLogin) {
+      throw new ConflictException(
+        'Parent login already exists for this student',
+      );
+    }
+
+    const parentLogin = this.parentLoginRepository.create({
+      student: { id: studentProfile.student.id } as AuthEntity,
+      studentProfile: { id: studentProfile.id } as StudentProfileEntity,
+      password: hashPassword(password),
+      isEnabled: isEnabled ?? true,
+    });
+
+    try {
+      const savedParentLogin =
+        await this.parentLoginRepository.save(parentLogin);
+
+      return {
+        id: savedParentLogin.id,
+        studentId: studentProfile.student.id,
+        studentProfileId: studentProfile.id,
+        isEnabled: savedParentLogin.isEnabled,
+        createdAt: savedParentLogin.createdAt,
+      };
+    } catch {
+      throw new InternalServerErrorException('Failed to create parent login');
+    }
+  }
+
+  async resetParentPassword(
+    resetParentPasswordDto: ResetParentPasswordDto,
+    user: OwnerContextUser,
+  ) {
+    const { studentId, newPassword } = resetParentPasswordDto;
+
+    const institution = await this.getOwnerInstitution(
+      user,
+      'You must belong to an institution to reset parent passwords',
+    );
+
+    const studentProfile = await this.studentProfileRepository.findOne({
+      where: {
+        student: { id: studentId },
+        institution: { prefix: institution.prefix },
+      },
+      relations: ['student', 'institution'],
+    });
+
+    if (!studentProfile || studentProfile.student.role !== UserRoles.STUDENT) {
+      throw new NotFoundException('Student not found in your institution');
+    }
+
+    const parentLogin = await this.parentLoginRepository.findOne({
+      where: { student: { id: studentId } },
+      relations: ['student'],
+    });
+
+    if (!parentLogin) {
+      throw new NotFoundException('Parent login not found for this student');
+    }
+
+    parentLogin.password = hashPassword(newPassword);
+
+    try {
+      const updatedParentLogin =
+        await this.parentLoginRepository.save(parentLogin);
+
+      return {
+        success: true,
+        message: 'Parent password reset successfully',
+        studentId,
+        updatedAt: updatedParentLogin.updatedAt,
+      };
+    } catch {
+      throw new InternalServerErrorException('Failed to reset parent password');
     }
   }
 
