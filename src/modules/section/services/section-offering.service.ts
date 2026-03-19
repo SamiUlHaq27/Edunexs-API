@@ -17,7 +17,7 @@ import { UserRoles } from 'src/shared/consts';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
 import { InstitutionContextService } from 'src/shared/services';
 import { UserData } from 'src/shared/types';
-import { In, Repository } from 'typeorm';
+import { In, Like, Repository } from 'typeorm';
 import {
   CreateSectionOfferingDto,
   DeleteSectionOfferingDto,
@@ -126,64 +126,59 @@ export class SectionOfferingService {
     const { page, size, filters } = listFiltersDto;
     const skip = (page - 1) * size;
 
-    const queryBuilder = this.sectionOfferingRepository
-      .createQueryBuilder('offering')
-      .leftJoinAndSelect('offering.section', 'sectionEntity')
-      .leftJoinAndSelect('sectionEntity.institution', 'institution')
-      .leftJoinAndSelect('offering.course', 'course')
-      .leftJoinAndSelect('offering.teacher', 'teacher')
-      .leftJoinAndSelect('offering.students', 'studentProfile')
-      .leftJoinAndSelect('studentProfile.student', 'studentAuth')
-      .where('institution.prefix = :institutionPrefix', {
-        institutionPrefix: managerInstitution.prefix,
-      });
+    const where: Record<string, unknown> = {
+      section: { institution: { prefix: managerInstitution.prefix } },
+    };
 
     if (filters && typeof filters === 'object') {
       const typedFilters = filters as Record<string, unknown>;
 
       if (typedFilters.sectionId !== undefined) {
-        queryBuilder.andWhere('sectionEntity.id = :sectionId', {
-          sectionId: Number(typedFilters.sectionId),
-        });
+        where.section = {
+          ...(where.section as Record<string, unknown>),
+          id: Number(typedFilters.sectionId),
+        };
       }
 
       if (typedFilters.courseId !== undefined) {
-        queryBuilder.andWhere('course.id = :courseId', {
-          courseId: Number(typedFilters.courseId),
-        });
+        where.course = { id: Number(typedFilters.courseId) };
       }
 
       if (typedFilters.teacherId !== undefined) {
-        queryBuilder.andWhere('teacher.id = :teacherId', {
-          teacherId: Number(typedFilters.teacherId),
-        });
+        where.teacher = { id: Number(typedFilters.teacherId) };
       }
 
       if (typeof typedFilters.name === 'string') {
-        queryBuilder.andWhere('LOWER(sectionEntity.name) LIKE LOWER(:name)', {
-          name: `%${typedFilters.name}%`,
-        });
+        where.section = {
+          ...(where.section as Record<string, unknown>),
+          name: Like(`%${typedFilters.name}%`),
+        };
       }
 
       if (typedFilters.isActive !== undefined) {
         const isActiveValue = typedFilters.isActive;
         if (typeof isActiveValue === 'string') {
-          queryBuilder.andWhere('offering.isActive = :isActive', {
-            isActive: isActiveValue === 'true',
-          });
+          where.isActive = isActiveValue === 'true';
         } else if (typeof isActiveValue === 'boolean') {
-          queryBuilder.andWhere('offering.isActive = :isActive', {
-            isActive: isActiveValue,
-          });
+          where.isActive = isActiveValue;
         }
       }
     }
 
-    const [data, total] = await queryBuilder
-      .orderBy('offering.createdAt', 'DESC')
-      .skip(skip)
-      .take(size)
-      .getManyAndCount();
+    const [data, total] = await this.sectionOfferingRepository.findAndCount({
+      where,
+      relations: [
+        'section',
+        'section.institution',
+        'course',
+        'teacher',
+        'students',
+        'students.student',
+      ],
+      order: { createdAt: 'DESC' },
+      skip,
+      take: size,
+    });
 
     return {
       data: data.map((offering) => this.buildOfferingResponse(offering)),
@@ -385,15 +380,17 @@ export class SectionOfferingService {
     institutionPrefix: string,
   ) {
     const teacher = await this.authRepository.findOne({
-      where: { id: teacherId, role: UserRoles.TEACHER },
+      where: {
+        id: teacherId,
+        role: UserRoles.TEACHER,
+        institution: { prefix: institutionPrefix },
+      },
     });
 
     if (!teacher) {
-      throw new NotFoundException('Teacher not found');
-    }
-
-    if (!teacher.username?.startsWith(`${institutionPrefix}_`)) {
-      throw new NotFoundException('Teacher not found in your institution');
+      throw new NotFoundException(
+        'Teacher not found or does not belong to your institution',
+      );
     }
 
     return teacher;

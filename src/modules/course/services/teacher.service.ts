@@ -40,6 +40,7 @@ export class TeacherService {
 
     const newTeacher = this.authRepository.create({
       username,
+      institution: { prefix: managerInstitution.prefix },
       password: hashPassword(password),
       name,
       role: UserRoles.TEACHER,
@@ -75,7 +76,7 @@ export class TeacherService {
 
     const where: FindOptionsWhere<AuthEntity> = {
       role: UserRoles.TEACHER,
-      username: Like(`${managerInstitution.prefix}_%`),
+      institution: { prefix: managerInstitution.prefix },
     };
 
     if (filters && typeof filters === 'object') {
@@ -146,17 +147,17 @@ export class TeacherService {
     } = updateTeacherDto;
 
     const teacher = await this.authRepository.findOne({
-      where: { id: teacherId, role: UserRoles.TEACHER },
+      where: {
+        id: teacherId,
+        role: UserRoles.TEACHER,
+        institution: { prefix: managerInstitution.prefix },
+      },
       relations: ['profilePictureFile'],
     });
 
     if (!teacher) {
-      throw new NotFoundException('Teacher not found');
-    }
-
-    if (!teacher.username?.startsWith(`${managerInstitution.prefix}_`)) {
       throw new NotFoundException(
-        'Teacher does not belong to your institution',
+        'Teacher not found or does not belong to your institution',
       );
     }
 
@@ -200,16 +201,16 @@ export class TeacherService {
       await this.institutionContextService.getManagerInstitution(user);
 
     const teacher = await this.authRepository.findOne({
-      where: { id: deleteTeacherDto.teacherId, role: UserRoles.TEACHER },
+      where: {
+        id: deleteTeacherDto.teacherId,
+        role: UserRoles.TEACHER,
+        institution: { prefix: managerInstitution.prefix },
+      },
     });
 
     if (!teacher) {
-      throw new NotFoundException('Teacher not found');
-    }
-
-    if (!teacher.username?.startsWith(`${managerInstitution.prefix}_`)) {
       throw new NotFoundException(
-        'Teacher does not belong to your institution',
+        'Teacher not found or does not belong to your institution',
       );
     }
 
@@ -269,10 +270,13 @@ export class TeacherService {
 
     while (counter < 1000) {
       const suffix = counter === 0 ? '' : `_${counter + 1}`;
-      const usernameCandidate = `${institutionPrefix}_${normalizedSeed}${suffix}`;
+      const usernameCandidate = `${normalizedSeed}${suffix}`;
 
       const existingUser = await this.authRepository.findOne({
-        where: { username: usernameCandidate },
+        where: {
+          username: usernameCandidate,
+          institution: { prefix: institutionPrefix },
+        },
       });
 
       if (!existingUser) {

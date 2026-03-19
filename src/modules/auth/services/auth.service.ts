@@ -8,7 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { AuthEntity } from 'src/database/entities/auth.entity';
 import { FileEntity } from 'src/database/entities/file.entity';
@@ -148,6 +148,12 @@ export class AuthService {
       return null;
     }
 
+    // If user is linked to an institution, use it directly
+    if (user.institution?.prefix) {
+      return user.institution.prefix;
+    }
+
+    // If user is institution owner, resolve from institution ownership
     if (user.role === UserRoles.INSTITUTION_OWNER) {
       const institution = await this.institutionRepository.findOne({
         where: { owner: { id: user.id } },
@@ -157,16 +163,8 @@ export class AuthService {
       return institution?.prefix ?? null;
     }
 
-    const usernamePrefix = user.username?.split('_')?.[0];
-    if (!usernamePrefix) {
-      return null;
-    }
-
-    const institution = await this.institutionRepository.findOne({
-      where: { prefix: usernamePrefix },
-    });
-
-    return institution?.prefix ?? null;
+    // Global admin or other role without institution
+    return null;
   }
 
   async signup(signupDto: SignupDto, profilePictureFile?: Express.Multer.File) {
@@ -299,11 +297,42 @@ export class AuthService {
       );
     }
 
-    // Find user
-    const user = await this.authRepository.findOne({
-      where: { ...(username && { username }), ...(email && { email }) },
-      relations: ['profilePictureFile'],
-    });
+    let user: AuthEntity | null = null;
+
+    // If username provided, try split+retry strategy
+    if (username) {
+      const underscoreIndex = username.indexOf('_');
+
+      // Try 1: If username has underscore, try institution-scoped lookup with extracted prefix
+      if (underscoreIndex > 0 && underscoreIndex < username.length - 1) {
+        const institutionPrefix = username.slice(0, underscoreIndex);
+        const localUsername = username.slice(underscoreIndex + 1);
+        user = await this.authRepository.findOne({
+          where: {
+            username: localUsername,
+            institution: { prefix: institutionPrefix },
+          },
+          relations: ['profilePictureFile', 'institution'],
+        });
+      }
+
+      // Try 2: If not found, try global (NULL prefix) lookup
+      if (!user) {
+        user = await this.authRepository.findOne({
+          where: {
+            username: username,
+            institution: IsNull(),
+          },
+          relations: ['profilePictureFile', 'institution'],
+        });
+      }
+    } else if (email) {
+      // Email login: query globally
+      user = await this.authRepository.findOne({
+        where: { email: email },
+        relations: ['profilePictureFile', 'institution'],
+      });
+    }
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');

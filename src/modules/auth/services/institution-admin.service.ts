@@ -103,12 +103,12 @@ export class InstitutionAdminService {
       }
     }
 
-    // Add institution prefix to username
-    const fullUsername = `${institution.prefix}_${username}`;
-
-    // Check if username already exists
+    // Check if username already exists for this institution using composite key
     const existingUser = await this.authRepository.findOne({
-      where: { username: fullUsername },
+      where: {
+        username: username,
+        institution: { prefix: institution.prefix },
+      },
     });
 
     if (existingUser) {
@@ -120,7 +120,8 @@ export class InstitutionAdminService {
 
     // Create new institution admin user
     const newInstitutionAdmin = this.authRepository.create({
-      username: fullUsername,
+      username: username,
+      institution: { prefix: institution.prefix },
       ...(email && { email }),
       password: hashedPassword,
       name,

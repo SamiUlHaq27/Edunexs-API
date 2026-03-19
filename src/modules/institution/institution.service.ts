@@ -198,7 +198,7 @@ export class InstitutionService {
       logoFile,
       isBlocked: institution.isBlocked,
       createdAt: institution.createdAt,
-      updatedAt: institution.upodatedAt,
+      updatedAt: institution.updatedAt,
     };
   }
 

@@ -3,17 +3,19 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
-  OneToMany,
-  OneToOne,
   JoinColumn,
+  ManyToOne,
+  OneToOne,
   PrimaryGeneratedColumn,
+  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 import { FileEntity } from './file.entity';
+import { InstitutionEntity } from './institution.entity';
 import type { UserRolesType } from 'src/shared/types/user.type';
-import { SectionOfferingEntity } from './section-offering.entity';
 
 @Entity({ name: 'tbl_auth' })
+@Unique(['institution', 'username'])
 export class AuthEntity {
   @PrimaryGeneratedColumn()
   id: number;
@@ -21,8 +23,12 @@ export class AuthEntity {
   @Column({ nullable: true, unique: true })
   email: string;
 
-  @Column({ nullable: true, unique: true })
+  @Column({ nullable: true })
   username: string;
+
+  @ManyToOne(() => InstitutionEntity)
+  @JoinColumn({ name: 'institutionPrefix', referencedColumnName: 'prefix' })
+  institution?: InstitutionEntity;
 
   @Column()
   password: string;
@@ -39,9 +45,6 @@ export class AuthEntity {
 
   @Column({ default: true })
   isActive: boolean;
-
-  @OneToMany(() => SectionOfferingEntity, (offering) => offering.teacher)
-  teacherSectionOfferings: SectionOfferingEntity[];
 
   @CreateDateColumn()
   createdAt: Date;

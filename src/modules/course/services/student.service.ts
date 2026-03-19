@@ -74,6 +74,7 @@ export class StudentService {
 
           const newStudent = studentAuthRepository.create({
             username,
+            institution: { prefix: managerInstitution.prefix },
             password: hashPassword(password),
             name,
             role: UserRoles.STUDENT,
@@ -402,10 +403,13 @@ export class StudentService {
 
     while (counter < 1000) {
       const suffix = counter === 0 ? '' : `_${counter + 1}`;
-      const usernameCandidate = `${institutionPrefix}_${normalizedSeed}${suffix}`;
+      const usernameCandidate = `${normalizedSeed}${suffix}`;
 
       const existingUser = await this.authRepository.findOne({
-        where: { username: usernameCandidate },
+        where: {
+          username: usernameCandidate,
+          institution: { prefix: institutionPrefix },
+        },
       });
 
       if (!existingUser) {

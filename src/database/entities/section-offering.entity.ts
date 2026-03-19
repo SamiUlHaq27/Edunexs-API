@@ -36,7 +36,7 @@ export class SectionOfferingEntity {
   @JoinColumn({ name: 'courseId' })
   course: CourseEntity;
 
-  @ManyToOne(() => AuthEntity, (teacher) => teacher.teacherSectionOfferings, {
+  @ManyToOne(() => AuthEntity, {
     nullable: false,
   })
   @JoinColumn({ name: 'teacherId' })

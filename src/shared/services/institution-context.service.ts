@@ -40,6 +40,7 @@ export class InstitutionContextService {
 
     const authUser = await this.authRepository.findOne({
       where: { id: user.authId },
+      relations: ['institution'],
     });
 
     if (!authUser) {
@@ -61,19 +62,19 @@ export class InstitutionContextService {
       return institution;
     }
 
-    const usernamePrefix = authUser.username?.split('_')?.[0];
-    if (!usernamePrefix) {
+    // Check for institution relation
+    if (!authUser.institution?.prefix) {
       throw new ForbiddenException(
-        'Institution admin account is not linked to an institution',
+        'User account is not linked to an institution',
       );
     }
 
     const institution = await this.institutionRepository.findOne({
-      where: { prefix: usernamePrefix },
+      where: { prefix: authUser.institution.prefix },
     });
 
     if (!institution) {
-      throw new NotFoundException('Institution not found for this admin');
+      throw new NotFoundException('Institution not found for this user');
     }
 
     return institution;

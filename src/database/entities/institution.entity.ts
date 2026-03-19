@@ -46,7 +46,7 @@ export class InstitutionEntity {
   createdAt: Date;
 
   @UpdateDateColumn()
-  upodatedAt: Date;
+  updatedAt: Date;
 
   @DeleteDateColumn()
   deletedAt: Date;
