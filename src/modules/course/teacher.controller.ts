@@ -5,7 +5,7 @@ import { AllowedRoles } from 'src/shared/reflectors';
 import type { UserData } from 'src/shared/types';
 import { ListFiltersDto } from 'src/shared/dtos';
 import { CreateTeacherDto, DeleteTeacherDto, UpdateTeacherDto } from './dtos';
-import { TeacherService } from './teacher.service';
+import { TeacherService } from './services';
 
 @Controller('teacher')
 export class TeacherController {

@@ -7,7 +7,7 @@ import type { UserData } from 'src/shared/types';
 import { CreateStudentGroupDto } from './dtos/create-student-group.dto';
 import { DeleteStudentGroupDto } from './dtos/delete-student-group.dto';
 import { UpdateStudentGroupDto } from './dtos/update-student-group.dto';
-import { StudentGroupService } from './student-group.service';
+import { StudentGroupService } from './services';
 
 @Controller('student/group')
 export class StudentGroupController {

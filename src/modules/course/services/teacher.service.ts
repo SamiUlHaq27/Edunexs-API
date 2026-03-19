@@ -12,7 +12,7 @@ import { hashPassword } from 'src/shared/helpers';
 import { InstitutionContextService } from 'src/shared/services';
 import { UserData } from 'src/shared/types';
 import { FindOptionsWhere, Like, Repository } from 'typeorm';
-import { CreateTeacherDto, DeleteTeacherDto, UpdateTeacherDto } from './dtos';
+import { CreateTeacherDto, DeleteTeacherDto, UpdateTeacherDto } from '../dtos';
 
 @Injectable()
 export class TeacherService {

@@ -10,7 +10,7 @@ import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
 import { InstitutionContextService } from 'src/shared/services';
 import { UserData } from 'src/shared/types';
 import { FindOptionsWhere, Like, Repository } from 'typeorm';
-import { CreateSectionDto, DeleteSectionDto, UpdateSectionDto } from './dtos';
+import { CreateSectionDto, DeleteSectionDto, UpdateSectionDto } from '../dtos';
 
 @Injectable()
 export class SectionService {

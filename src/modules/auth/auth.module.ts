@@ -2,16 +2,16 @@ import { Global, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
-import { AuthEntity } from 'src/database/entities/auth.entity';
-import { FileEntity } from 'src/database/entities/file.entity';
-import { OtpEntity } from 'src/database/entities/otp.entity';
 import { getSecretValue } from 'src/config/secret.config';
-import { BrevoService } from 'src/shared/services/brevo.service';
-import { AppwriteStorageService } from 'src/shared/services/appwrite-storage.service';
-import { InstitutionAdminService } from './institution-admin.service';
 import { InstitutionAdminController } from './institution-admin.controller';
-import { InstitutionEntity } from 'src/database/entities';
+import {
+  AuthEntity,
+  FileEntity,
+  InstitutionEntity,
+  OtpEntity,
+} from 'src/database/entities';
+import { AuthService, InstitutionAdminService } from './services';
+import { BrevoService, AppwriteStorageService } from 'src/shared/services';
 
 @Global()
 @Module({

@@ -10,7 +10,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { AuthService } from './auth.service';
+import { AuthService } from './services';
 import { SignupDto, LoginDto, ResetPasswordDto } from './dtos';
 import { SendOtpDto } from './dtos/send-otp.dto';
 import { UploadFileDto } from './dtos/upload-file';

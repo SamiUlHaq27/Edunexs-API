@@ -7,7 +7,7 @@ import { ListFiltersDto } from 'src/shared/dtos';
 import { CreateStudentDto } from './dtos/create-student.dto';
 import { DeleteStudentDto } from './dtos/delete-student.dto';
 import { UpdateStudentDto } from './dtos/update-student.dto';
-import { StudentService } from './student.service';
+import { StudentService } from './services';
 
 @Controller('student')
 export class StudentController {

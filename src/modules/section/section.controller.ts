@@ -5,7 +5,7 @@ import { User } from 'src/shared/pipes';
 import { AllowedRoles } from 'src/shared/reflectors';
 import type { UserData } from 'src/shared/types';
 import { CreateSectionDto, DeleteSectionDto, UpdateSectionDto } from './dtos';
-import { SectionService } from './section.service';
+import { SectionService } from './services';
 
 @Controller('section')
 export class SectionController {

@@ -9,7 +9,7 @@ import {
   DeleteSectionOfferingDto,
   UpdateSectionOfferingDto,
 } from './dtos';
-import { SectionOfferingService } from './section-offering.service';
+import { SectionOfferingService } from './services';
 
 @Controller('section/offering')
 export class SectionOfferingController {

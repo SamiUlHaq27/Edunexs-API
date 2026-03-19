@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Post, Put, Version } from '@nestjs/common';
-import { InstitutionAdminService } from './institution-admin.service';
+import { InstitutionAdminService } from './services';
 import { AllowedRoles } from 'src/shared/reflectors';
 import { UserRoles } from 'src/shared/consts';
 import { User } from 'src/shared/pipes';

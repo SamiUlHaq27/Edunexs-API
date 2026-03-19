@@ -17,7 +17,7 @@ import {
   CreateInstitutionAdminDto,
   UpdateInstitutionAdminDto,
   UpdateInstitutionAdminProfileDto,
-} from './dtos';
+} from '../dtos';
 import { OtpStatuses, OtpTypes, UserRoles } from 'src/shared/consts';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
 import { hashPassword } from 'src/shared/helpers';

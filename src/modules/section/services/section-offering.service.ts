@@ -22,7 +22,7 @@ import {
   CreateSectionOfferingDto,
   DeleteSectionOfferingDto,
   UpdateSectionOfferingDto,
-} from './dtos';
+} from '../dtos';
 
 @Injectable()
 export class SectionOfferingService {

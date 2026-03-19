@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Post, Put, Version } from '@nestjs/common';
 import { AllowedRoles } from 'src/shared/reflectors';
 import { UserRoles } from 'src/shared/consts';
 import { User } from 'src/shared/pipes';
-import { CourseService } from './course.service';
+import { CourseService } from './services';
 import { CreateCourseDto, DeleteCourseDto, UpdateCourseDto } from './dtos';
 import { ListFiltersDto } from 'src/shared/dtos';
 import type { UserData } from 'src/shared/types';

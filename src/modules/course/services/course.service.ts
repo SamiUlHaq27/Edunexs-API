@@ -10,7 +10,7 @@ import { FindOptionsWhere, Like, Repository } from 'typeorm';
 import { CourseEntity } from 'src/database/entities';
 import { UserRoles } from 'src/shared/consts';
 import { InstitutionContextService } from 'src/shared/services';
-import { CreateCourseDto, DeleteCourseDto, UpdateCourseDto } from './dtos';
+import { CreateCourseDto, DeleteCourseDto, UpdateCourseDto } from '../dtos';
 import { ListFiltersDto } from 'src/shared/dtos';
 import { UserData } from 'src/shared/types';
 

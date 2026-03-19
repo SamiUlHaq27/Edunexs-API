@@ -15,7 +15,7 @@ import { FileEntity } from 'src/database/entities/file.entity';
 import { InstitutionEntity } from 'src/database/entities/institution.entity';
 import { OtpEntity } from 'src/database/entities/otp.entity';
 import { OtpStatuses, OtpTypes, UserRoles } from 'src/shared/consts';
-import { SignupDto, LoginDto, ResetPasswordDto, UploadFileDto } from './dtos';
+import { SignupDto, LoginDto, ResetPasswordDto, UploadFileDto } from '../dtos';
 import { randomInt } from 'crypto';
 import { UserData } from 'src/shared/types';
 import { hashPassword } from 'src/shared/helpers';
