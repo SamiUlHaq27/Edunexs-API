@@ -3,6 +3,7 @@ export * from './login.dto';
 export * from './reset-password.dto';
 export * from './upload-file';
 export * from './get-file.dto';
+export * from './parent-login.dto';
 export * from './create-institution-admin.dto';
 export * from './update-institution-admin.dto';
 export * from './update-institution-admin-profile.dto';

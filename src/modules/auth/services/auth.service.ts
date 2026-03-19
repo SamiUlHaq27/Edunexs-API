@@ -14,8 +14,15 @@ import { AuthEntity } from 'src/database/entities/auth.entity';
 import { FileEntity } from 'src/database/entities/file.entity';
 import { InstitutionEntity } from 'src/database/entities/institution.entity';
 import { OtpEntity } from 'src/database/entities/otp.entity';
+import { ParentLoginEntity, StudentProfileEntity } from 'src/database/entities';
 import { OtpStatuses, OtpTypes, UserRoles } from 'src/shared/consts';
-import { SignupDto, LoginDto, ResetPasswordDto, UploadFileDto } from '../dtos';
+import {
+  SignupDto,
+  LoginDto,
+  ResetPasswordDto,
+  UploadFileDto,
+  ParentLoginDto,
+} from '../dtos';
 import { randomInt } from 'crypto';
 import { UserData } from 'src/shared/types';
 import { hashPassword } from 'src/shared/helpers';
@@ -39,6 +46,10 @@ export class AuthService {
     private readonly otpRepository: Repository<OtpEntity>,
     @InjectRepository(FileEntity)
     private readonly fileRepository: Repository<FileEntity>,
+    @InjectRepository(ParentLoginEntity)
+    private readonly parentLoginRepository: Repository<ParentLoginEntity>,
+    @InjectRepository(StudentProfileEntity)
+    private readonly studentProfileRepository: Repository<StudentProfileEntity>,
     private readonly jwtService: JwtService,
     private readonly brevoService: BrevoService,
     private readonly appwriteStorageService: AppwriteStorageService,
@@ -373,6 +384,88 @@ export class AuthService {
         institutionId,
         isActive: user?.isActive,
         createdAt: user?.createdAt,
+      },
+    };
+  }
+
+  async parentLogin(parentLoginDto: ParentLoginDto) {
+    const { username, password } = parentLoginDto;
+
+    if (!username) {
+      throw new BadRequestException('Username is required');
+    }
+
+    let student: AuthEntity | null = null;
+
+    const underscoreIndex = username.indexOf('_');
+
+    if (underscoreIndex > 0 && underscoreIndex < username.length - 1) {
+      const institutionPrefix = username.slice(0, underscoreIndex);
+      const localUsername = username.slice(underscoreIndex + 1);
+      student = await this.authRepository.findOne({
+        where: {
+          username: localUsername,
+          institution: { prefix: institutionPrefix },
+        },
+        relations: ['institution'],
+      });
+    }
+
+    if (!student) {
+      student = await this.authRepository.findOne({
+        where: { username, institution: IsNull() },
+        relations: ['institution'],
+      });
+    }
+
+    if (!student) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!student.isActive) {
+      throw new UnauthorizedException('Account is inactive');
+    }
+
+    if (student.role !== UserRoles.STUDENT) {
+      throw new UnauthorizedException('Parent login only allowed for students');
+    }
+
+    const parentLogin = await this.parentLoginRepository.findOne({
+      where: { student: { id: student.id } },
+      relations: ['student', 'studentProfile'],
+    });
+
+    if (!parentLogin || !parentLogin.isEnabled) {
+      throw new UnauthorizedException(
+        'Parent login is not enabled for this student',
+      );
+    }
+
+    const hashedPassword = hashPassword(password);
+    if (parentLogin.password !== hashedPassword) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const institutionId = await this.resolveInstitutionIdForUser(student);
+
+    const payload: UserData = {
+      authId: parentLogin.id,
+      username: student.username || student.email,
+      role: UserRoles.PARENT,
+      institutionId,
+      studentProfileId: parentLogin.studentProfile?.id ?? null,
+    };
+
+    const accessToken = this.jwtService.sign(payload);
+
+    return {
+      accessToken,
+      user: {
+        id: parentLogin.id,
+        username: payload.username,
+        role: payload.role,
+        institutionId,
+        studentProfileId: payload.studentProfileId,
       },
     };
   }

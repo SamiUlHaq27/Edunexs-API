@@ -9,6 +9,8 @@ import {
   FileEntity,
   InstitutionEntity,
   OtpEntity,
+  ParentLoginEntity,
+  StudentProfileEntity,
 } from 'src/database/entities';
 import { AuthService, InstitutionAdminService } from './services';
 import { BrevoService, AppwriteStorageService } from 'src/shared/services';
@@ -21,6 +23,8 @@ import { BrevoService, AppwriteStorageService } from 'src/shared/services';
       OtpEntity,
       FileEntity,
       InstitutionEntity,
+      ParentLoginEntity,
+      StudentProfileEntity,
     ]),
     JwtModule.register({
       secret: getSecretValue('JWT_SECRET') || 'your-secret-key',

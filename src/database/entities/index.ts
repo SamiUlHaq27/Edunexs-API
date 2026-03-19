@@ -14,3 +14,4 @@ export * from './assignment-submission.entity';
 export * from './grade.entity';
 export * from './quiz.entity';
 export * from './quiz-attempt.entity';
+export * from './parent-login.entity';

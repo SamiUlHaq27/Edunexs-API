@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './services';
-import { SignupDto, LoginDto, ResetPasswordDto } from './dtos';
+import { SignupDto, LoginDto, ResetPasswordDto, ParentLoginDto } from './dtos';
 import { SendOtpDto } from './dtos/send-otp.dto';
 import { UploadFileDto } from './dtos/upload-file';
 import { GetFileDto } from './dtos/get-file.dto';
@@ -39,6 +39,12 @@ export class AuthController {
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
+  }
+
+  @Version('1')
+  @Post('parent/login')
+  async parentLogin(@Body() parentLoginDto: ParentLoginDto) {
+    return this.authService.parentLogin(parentLoginDto);
   }
 
   @Version('1')

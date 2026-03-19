@@ -8,4 +8,5 @@ export type UserData = {
   username: string;
   role: UserRolesType;
   institutionId?: string | null;
+  studentProfileId?: number | null;
 };

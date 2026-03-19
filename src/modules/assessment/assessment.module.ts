@@ -20,6 +20,8 @@ import { AssignmentController } from './assignment.controller';
 import { AssignmentService } from './assignment.service';
 import { QuizController } from './quiz.controller';
 import { QuizService } from './quiz.service';
+import { AssessmentController } from './assessment.controller';
+import { AssessmentReportService } from './assessment-report.service';
 
 @Module({
   imports: [
@@ -36,10 +38,11 @@ import { QuizService } from './quiz.service';
       QuizAttemptEntity,
     ]),
   ],
-  controllers: [AssignmentController, QuizController],
+  controllers: [AssignmentController, QuizController, AssessmentController],
   providers: [
     AssignmentService,
     QuizService,
+    AssessmentReportService,
     InstitutionContextService,
     AppwriteStorageService,
   ],
