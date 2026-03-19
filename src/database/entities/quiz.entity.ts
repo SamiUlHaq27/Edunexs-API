@@ -11,34 +11,32 @@ import {
 import { AuthEntity } from './auth.entity';
 import { SectionOfferingEntity } from './section-offering.entity';
 
-export const AssessmentTypes = {
-  ASSIGNMENT: 'assignment',
-  QUIZ: 'quiz',
-  EXAM: 'exam',
-} as const;
+export type QuizQuestion = {
+  id: string;
+  question: string;
+  options: string[];
+  correctOptionIndex: number;
+};
 
-@Entity({ name: 'tbl_assignment' })
-export class AssignmentEntity {
+@Entity({ name: 'tbl_quiz' })
+export class QuizEntity {
   @PrimaryGeneratedColumn()
   id: number;
-
-  @Column({
-    type: 'character varying',
-    default: AssessmentTypes.ASSIGNMENT,
-  })
-  assessmentType: (typeof AssessmentTypes)[keyof typeof AssessmentTypes];
 
   @Column({ type: 'character varying', length: 200 })
   title: string;
 
-  @Column({ type: 'text', nullable: true })
-  description?: string;
+  @Column({ type: 'timestamp' })
+  startsAt: Date;
 
   @Column({ type: 'timestamp' })
-  dueDate: Date;
+  endsAt: Date;
 
-  @Column({ type: 'numeric', precision: 10, scale: 2 })
-  maxGrade: number;
+  @Column({ type: 'int' })
+  maxAttempts: number;
+
+  @Column({ type: 'jsonb' })
+  questions: QuizQuestion[];
 
   @ManyToOne(() => SectionOfferingEntity, { nullable: false })
   @JoinColumn({ name: 'offeringId' })

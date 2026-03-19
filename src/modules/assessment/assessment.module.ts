@@ -7,6 +7,8 @@ import {
   AuthEntity,
   FileEntity,
   GradeEntity,
+  QuizAttemptEntity,
+  QuizEntity,
   SectionOfferingEntity,
   StudentProfileEntity,
 } from 'src/database/entities';
@@ -16,6 +18,8 @@ import {
 } from 'src/shared/services';
 import { AssignmentController } from './assignment.controller';
 import { AssignmentService } from './assignment.service';
+import { QuizController } from './quiz.controller';
+import { QuizService } from './quiz.service';
 
 @Module({
   imports: [
@@ -28,11 +32,14 @@ import { AssignmentService } from './assignment.service';
       StudentProfileEntity,
       FileEntity,
       AuthEntity,
+      QuizEntity,
+      QuizAttemptEntity,
     ]),
   ],
-  controllers: [AssignmentController],
+  controllers: [AssignmentController, QuizController],
   providers: [
     AssignmentService,
+    QuizService,
     InstitutionContextService,
     AppwriteStorageService,
   ],

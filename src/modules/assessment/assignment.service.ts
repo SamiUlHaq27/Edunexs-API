@@ -198,10 +198,9 @@ export class AssignmentService {
       assignmentIds.length > 0
         ? await this.gradeRepository.find({
             where: {
-              assignment: { id: In(assignmentIds) },
+              assessmentId: In(assignmentIds),
               gradeType: GradeTypes.ASSIGNMENT,
             },
-            relations: ['assignment'],
           })
         : [];
 
@@ -223,7 +222,7 @@ export class AssignmentService {
 
     const gradedCountMap = new Map<number, number>();
     for (const row of grades) {
-      const id = row.assignment?.id;
+      const id = row.assessmentId;
       if (!id) continue;
       gradedCountMap.set(id, (gradedCountMap.get(id) || 0) + 1);
     }
@@ -306,7 +305,7 @@ export class AssignmentService {
         ? await this.gradeRepository.find({
             where: {
               gradeType: GradeTypes.ASSIGNMENT,
-              assignment: { id: assignment.id },
+              assessmentId: assignment.id,
               studentProfile: { id: In(profileIds) },
             },
             relations: ['studentProfile', 'gradedByTeacher'],
@@ -390,17 +389,17 @@ export class AssignmentService {
     let grade = await this.gradeRepository.findOne({
       where: {
         gradeType: GradeTypes.ASSIGNMENT,
-        assignment: { id: assignment.id },
+        assessmentId: assignment.id,
         studentProfile: { id: studentProfile.id },
         sectionOffering: { id: assignment.sectionOffering.id },
       },
-      relations: ['studentProfile', 'assignment', 'sectionOffering'],
+      relations: ['studentProfile', 'sectionOffering'],
     });
 
     if (!grade) {
       grade = this.gradeRepository.create({
         gradeType: GradeTypes.ASSIGNMENT,
-        assignment: { id: assignment.id },
+        assessmentId: assignment.id,
         studentProfile: { id: studentProfile.id },
         sectionOffering: { id: assignment.sectionOffering.id },
         gradedByTeacher: { id: user.authId },
@@ -518,11 +517,10 @@ export class AssignmentService {
       assignmentIds.length > 0
         ? await this.gradeRepository.find({
             where: {
-              assignment: { id: In(assignmentIds) },
+              assessmentId: In(assignmentIds),
               studentProfile: { id: studentProfile.id },
               gradeType: GradeTypes.ASSIGNMENT,
             },
-            relations: ['assignment'],
           })
         : [];
 
@@ -544,8 +542,8 @@ export class AssignmentService {
 
     const gradeMap = new Map<number, GradeEntity>();
     for (const row of grades) {
-      if (row.assignment?.id) {
-        gradeMap.set(row.assignment.id, row);
+      if (row.assessmentId) {
+        gradeMap.set(row.assessmentId, row);
       }
     }
 

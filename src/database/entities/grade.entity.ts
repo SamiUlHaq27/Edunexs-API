@@ -9,7 +9,6 @@ import {
   Unique,
   UpdateDateColumn,
 } from 'typeorm';
-import { AssignmentEntity } from './assignment.entity';
 import { AuthEntity } from './auth.entity';
 import { SectionOfferingEntity } from './section-offering.entity';
 import { StudentProfileEntity } from './student-profile.entity';
@@ -21,7 +20,7 @@ export const GradeTypes = {
 } as const;
 
 @Entity({ name: 'tbl_grade' })
-@Unique(['gradeType', 'studentProfile', 'sectionOffering', 'assignment'])
+@Unique(['gradeType', 'studentProfile', 'sectionOffering', 'assessmentId'])
 export class GradeEntity {
   @PrimaryGeneratedColumn()
   id: number;
@@ -41,9 +40,8 @@ export class GradeEntity {
   @JoinColumn({ name: 'offeringId' })
   sectionOffering: SectionOfferingEntity;
 
-  @ManyToOne(() => AssignmentEntity, { nullable: true })
-  @JoinColumn({ name: 'assignmentId' })
-  assignment?: AssignmentEntity;
+  @Column({ type: 'int', nullable: true })
+  assessmentId?: number;
 
   @Column({ type: 'numeric', precision: 10, scale: 2 })
   score: number;
