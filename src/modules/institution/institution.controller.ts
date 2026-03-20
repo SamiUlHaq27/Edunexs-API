@@ -37,12 +37,6 @@ export class InstitutionController {
   }
 
   @Version('1')
-  @Get()
-  async findAll() {
-    return this.institutionService.findAll();
-  }
-
-  @Version('1')
   @AllowedRoles([UserRoles.ADMIN])
   @Post('admin/all')
   async findAllForAdmin(@Body() listFiltersDto: ListFiltersDto) {

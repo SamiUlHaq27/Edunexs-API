@@ -86,12 +86,6 @@ export class InstitutionService {
     }
   }
 
-  async findAll() {
-    return await this.institutionRepository.find({
-      order: { createdAt: 'DESC' },
-    });
-  }
-
   async findAllForAdmin(listFiltersDto: ListFiltersDto) {
     const { page, size, filters } = listFiltersDto;
     const skip = (page - 1) * size;

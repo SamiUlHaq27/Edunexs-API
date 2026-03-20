@@ -99,11 +99,7 @@ export class AuthService {
     return template({ name, otp });
   }
 
-  private getWelcomeEmailTemplate(
-    name: string,
-    email: string,
-    username: string,
-  ): string {
+  private getWelcomeEmailTemplate(name: string, email: string): string {
     const templatePath = join(
       process.cwd(),
       'src',
@@ -113,7 +109,7 @@ export class AuthService {
     );
     const templateSource = readFileSync(templatePath, 'utf-8');
     const template = Handlebars.compile(templateSource);
-    return template({ name, email, username });
+    return template({ name, email });
   }
 
   /**
@@ -152,30 +148,6 @@ export class AuthService {
     }
 
     return otpRecord;
-  }
-
-  private async resolveInstitutionIdForUser(user: AuthEntity) {
-    if (!user) {
-      return null;
-    }
-
-    // If user is linked to an institution, use it directly
-    if (user.institution?.prefix) {
-      return user.institution.prefix;
-    }
-
-    // If user is institution owner, resolve from institution ownership
-    if (user.role === UserRoles.INSTITUTION_OWNER) {
-      const institution = await this.institutionRepository.findOne({
-        where: { owner: { id: user.id } },
-        relations: ['owner'],
-      });
-
-      return institution?.prefix ?? null;
-    }
-
-    // Global admin or other role without institution
-    return null;
   }
 
   async signup(signupDto: SignupDto, profilePictureFile?: Express.Multer.File) {
@@ -247,7 +219,6 @@ export class AuthService {
         const welcomeHtml = this.getWelcomeEmailTemplate(
           savedUser.name || savedUser.email,
           savedUser.email,
-          savedUser.email,
         );
         await this.brevoService.sendEmail({
           to: [
@@ -265,12 +236,10 @@ export class AuthService {
       }
 
       // Generate JWT token
-      const institutionId = await this.resolveInstitutionIdForUser(savedUser);
       const payload: UserData = {
         authId: savedUser.id,
         username: savedUser.email,
         role: savedUser.role,
-        institutionId,
       };
 
       const accessToken = this.jwtService.sign(payload);
@@ -285,7 +254,6 @@ export class AuthService {
             profilePictureFileData,
           ),
           role: savedUser?.role,
-          institutionId,
           isActive: savedUser?.isActive,
           createdAt: savedUser?.createdAt,
         },
@@ -354,6 +322,9 @@ export class AuthService {
       throw new UnauthorizedException('Account is inactive');
     }
 
+    if (user?.role == UserRoles.INSTITUTION_OWNER && !user?.institution)
+      throw new BadRequestException('Please create your institution first');
+
     // Verify password
     const hashedPassword = hashPassword(password);
     if (user?.password !== hashedPassword) {
@@ -361,12 +332,11 @@ export class AuthService {
     }
 
     // Generate JWT token
-    const institutionId = await this.resolveInstitutionIdForUser(user);
     const payload: UserData = {
       authId: user.id,
       username: user.email,
       role: user.role,
-      institutionId,
+      institutionId: user?.institution?.prefix,
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -381,7 +351,7 @@ export class AuthService {
           user?.profilePictureFile,
         ),
         role: user?.role,
-        institutionId,
+        institutionId: user?.institution?.prefix,
         isActive: user?.isActive,
         createdAt: user?.createdAt,
       },
@@ -405,15 +375,9 @@ export class AuthService {
       student = await this.authRepository.findOne({
         where: {
           username: localUsername,
+          role: UserRoles.STUDENT,
           institution: { prefix: institutionPrefix },
         },
-        relations: ['institution'],
-      });
-    }
-
-    if (!student) {
-      student = await this.authRepository.findOne({
-        where: { username, institution: IsNull() },
         relations: ['institution'],
       });
     }
@@ -424,10 +388,6 @@ export class AuthService {
 
     if (!student.isActive) {
       throw new UnauthorizedException('Account is inactive');
-    }
-
-    if (student.role !== UserRoles.STUDENT) {
-      throw new UnauthorizedException('Parent login only allowed for students');
     }
 
     const parentLogin = await this.parentLoginRepository.findOne({
@@ -446,13 +406,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const institutionId = await this.resolveInstitutionIdForUser(student);
-
     const payload: UserData = {
       authId: parentLogin.id,
       username: student.username || student.email,
       role: UserRoles.PARENT,
-      institutionId,
+      institutionId: student?.institution?.prefix,
       studentProfileId: parentLogin.studentProfile?.id ?? null,
     };
 
@@ -464,7 +422,7 @@ export class AuthService {
         id: parentLogin.id,
         username: payload.username,
         role: payload.role,
-        institutionId,
+        institutionId: payload.institutionId,
         studentProfileId: payload.studentProfileId,
       },
     };

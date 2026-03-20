@@ -6,10 +6,8 @@ import { User } from 'src/shared/pipes';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
 import type { UserData } from 'src/shared/types';
 import {
-  CreateParentLoginDto,
   CreateInstitutionAdminDto,
   DeleteInstitutionAdminDto,
-  ResetParentPasswordDto,
   UpdateInstitutionAdminDto,
   UpdateInstitutionAdminProfileDto,
 } from './dtos';
@@ -66,32 +64,6 @@ export class InstitutionAdminController {
   ) {
     return await this.institutionAdminService.delete(
       deleteInstitutionAdminDto.institutionAdminId,
-      user,
-    );
-  }
-
-  @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
-  @Post('parent-login')
-  async createParentLogin(
-    @Body() createParentLoginDto: CreateParentLoginDto,
-    @User() user: UserData,
-  ) {
-    return await this.institutionAdminService.createParentLogin(
-      createParentLoginDto,
-      user,
-    );
-  }
-
-  @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
-  @Put('parent-login/reset-password')
-  async resetParentPassword(
-    @Body() resetParentPasswordDto: ResetParentPasswordDto,
-    @User() user: UserData,
-  ) {
-    return await this.institutionAdminService.resetParentPassword(
-      resetParentPasswordDto,
       user,
     );
   }

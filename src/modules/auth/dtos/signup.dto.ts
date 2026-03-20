@@ -4,6 +4,7 @@ import {
   MinLength,
   MaxLength,
   Length,
+  IsOptional,
 } from 'class-validator';
 
 export class SignupDto {
@@ -24,4 +25,7 @@ export class SignupDto {
   @IsString()
   @Length(6, 6)
   otp: string;
+
+  @IsOptional()
+  profilePicture?: Express.Multer.File;
 }
