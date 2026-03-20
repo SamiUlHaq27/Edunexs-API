@@ -5,7 +5,6 @@ import {
   InternalServerErrorException,
   BadRequestException,
   Logger,
-  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
@@ -457,68 +456,6 @@ export class AuthService {
     return {
       success: true,
       message: 'Password reset successfully',
-    };
-  }
-
-  async getCurrentUser(authId: number) {
-    const user = await this.authRepository.findOne({
-      where: { id: authId },
-      relations: ['profilePictureFile'],
-    });
-
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
-
-    return {
-      id: user.id,
-      username: user.email,
-      name: user.name,
-      profilePicture: this.buildProfilePictureResponse(user.profilePictureFile),
-      role: user.role,
-      isActive: user.isActive,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    };
-  }
-
-  async getFileUrl(fileId: string) {
-    if (!fileId) {
-      throw new BadRequestException('fileId is required');
-    }
-
-    const file = await this.fileRepository.findOne({
-      where: { id: fileId },
-    });
-
-    if (!file) {
-      throw new NotFoundException('File not found');
-    }
-
-    let publicUrl: string | null = null;
-    try {
-      publicUrl = this.appwriteStorageService.getFileViewUrl({
-        fileId: file.fileId,
-      });
-      this.logger.log(
-        `Generated publicUrl for fileId ${file.fileId}: ${publicUrl}`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to generate public URL for fileId ${file.fileId}`,
-        error instanceof Error ? error.message : '',
-      );
-      publicUrl = null;
-    }
-
-    return {
-      fileId: file.id,
-      fileName: file.fileName,
-      appwriteFileId: file.fileId,
-      mimeType: file.mimeType,
-      sizeOriginal: file.sizeOriginal,
-      publicUrl,
-      createdAt: file.createdAt,
     };
   }
 
