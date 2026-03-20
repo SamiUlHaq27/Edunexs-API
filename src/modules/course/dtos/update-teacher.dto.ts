@@ -4,7 +4,6 @@ import {
   IsInt,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -26,8 +25,7 @@ export class UpdateTeacherDto {
   password?: string;
 
   @IsOptional()
-  @IsUUID()
-  profilePictureFileId?: string;
+  profilePicture?: Express.Multer.File;
 
   @IsOptional()
   @IsEmail()

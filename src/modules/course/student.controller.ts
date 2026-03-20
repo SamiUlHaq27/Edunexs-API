@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Post, Put, Version } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Post,
+  Put,
+  UploadedFile,
+  UseInterceptors,
+  Version,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { User } from 'src/shared/pipes';
 import { UserRoles } from 'src/shared/consts';
 import { AllowedRoles } from 'src/shared/reflectors';
@@ -16,11 +26,21 @@ export class StudentController {
   @Version('1')
   @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
   @Post()
+  @UseInterceptors(
+    FileInterceptor('profilePicture', {
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    }),
+  )
   async createStudent(
     @Body() createStudentDto: CreateStudentDto,
     @User() user: UserData,
+    @UploadedFile() profilePicture?: Express.Multer.File,
   ) {
-    return await this.studentService.createStudent(createStudentDto, user);
+    return await this.studentService.createStudent(
+      createStudentDto,
+      user,
+      profilePicture,
+    );
   }
 
   @Version('1')
@@ -36,11 +56,21 @@ export class StudentController {
   @Version('1')
   @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
   @Put()
+  @UseInterceptors(
+    FileInterceptor('profilePicture', {
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    }),
+  )
   async updateStudent(
     @Body() updateStudentDto: UpdateStudentDto,
     @User() user: UserData,
+    @UploadedFile() profilePicture?: Express.Multer.File,
   ) {
-    return await this.studentService.updateStudent(updateStudentDto, user);
+    return await this.studentService.updateStudent(
+      updateStudentDto,
+      user,
+      profilePicture,
+    );
   }
 
   @Version('1')

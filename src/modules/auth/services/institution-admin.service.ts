@@ -52,9 +52,9 @@ export class InstitutionAdminService {
   async create(
     createInstitutionAdminDto: CreateInstitutionAdminDto,
     user: OwnerContextUser,
+    profilePicture?: Express.Multer.File,
   ) {
-    const { username, password, name, email, otp, profilePictureFileId } =
-      createInstitutionAdminDto;
+    const { username, password, name, email, otp } = createInstitutionAdminDto;
 
     // Verify the owner has an institution
     const institution = await this.getOwnerInstitution(
@@ -124,6 +124,35 @@ export class InstitutionAdminService {
     // Hash password
     const hashedPassword = hashPassword(password);
 
+    let uploadedProfileFile: FileEntity | undefined;
+    if (profilePicture) {
+      const maxFileSize = 5 * 1024 * 1024;
+      if (profilePicture.size > maxFileSize) {
+        throw new BadRequestException('File size exceeds 5MB limit');
+      }
+
+      try {
+        const uploadResult = await this.appwriteStorageService.uploadFile({
+          file: profilePicture.buffer,
+          fileName: profilePicture.originalname,
+          mimeType: profilePicture.mimetype,
+        });
+
+        const fileRecord = this.fileRepository.create({
+          fileName: uploadResult.fileName,
+          fileId: uploadResult.fileId,
+          mimeType: uploadResult.mimeType,
+          sizeOriginal: uploadResult.sizeOriginal,
+        });
+
+        uploadedProfileFile = await this.fileRepository.save(fileRecord);
+      } catch (error) {
+        throw new InternalServerErrorException(
+          `Failed to upload profile picture: ${error instanceof Error ? error.message : 'unknown error'}`,
+        );
+      }
+    }
+
     // Create new institution admin user
     const newInstitutionAdmin = this.authRepository.create({
       username: username,
@@ -133,8 +162,8 @@ export class InstitutionAdminService {
       name,
       role: UserRoles.INSTITUTION_ADMIN,
       isActive: true,
-      ...(profilePictureFileId && {
-        profilePictureFile: { id: profilePictureFileId },
+      ...(uploadedProfileFile && {
+        profilePictureFile: { id: uploadedProfileFile.id },
       }),
     });
 
@@ -152,6 +181,17 @@ export class InstitutionAdminService {
         createdAt: savedInstitutionAdmin?.createdAt,
       };
     } catch {
+      if (uploadedProfileFile) {
+        try {
+          await this.appwriteStorageService.deleteFile(
+            uploadedProfileFile.fileId,
+          );
+          await this.fileRepository.delete(uploadedProfileFile.id);
+        } catch {
+          // Best effort cleanup for pre-uploaded profile picture.
+        }
+      }
+
       throw new InternalServerErrorException(
         'Failed to create institution admin',
       );
@@ -162,9 +202,9 @@ export class InstitutionAdminService {
     institutionAdminId: number,
     updateInstitutionAdminDto: UpdateInstitutionAdminDto,
     user: OwnerContextUser,
+    profilePicture?: Express.Multer.File,
   ) {
-    const { password, name, email, otp, isActive, profilePictureFileId } =
-      updateInstitutionAdminDto;
+    const { password, name, email, otp, isActive } = updateInstitutionAdminDto;
 
     // Verify the owner has an institution
     const institution = await this.getOwnerInstitution(
@@ -259,10 +299,35 @@ export class InstitutionAdminService {
     if (password) {
       institutionAdmin.password = hashPassword(password);
     }
-    if (profilePictureFileId !== undefined) {
-      institutionAdmin.profilePictureFile = profilePictureFileId
-        ? ({ id: profilePictureFileId } as FileEntity)
-        : undefined;
+    if (profilePicture) {
+      const maxFileSize = 5 * 1024 * 1024;
+      if (profilePicture.size > maxFileSize) {
+        throw new BadRequestException('File size exceeds 5MB limit');
+      }
+
+      try {
+        const uploadResult = await this.appwriteStorageService.uploadFile({
+          file: profilePicture.buffer,
+          fileName: profilePicture.originalname,
+          mimeType: profilePicture.mimetype,
+        });
+
+        const fileRecord = this.fileRepository.create({
+          fileName: uploadResult.fileName,
+          fileId: uploadResult.fileId,
+          mimeType: uploadResult.mimeType,
+          sizeOriginal: uploadResult.sizeOriginal,
+        });
+
+        const savedFile = await this.fileRepository.save(fileRecord);
+        institutionAdmin.profilePictureFile = {
+          id: savedFile.id,
+        } as FileEntity;
+      } catch (error) {
+        throw new InternalServerErrorException(
+          `Failed to upload profile picture: ${error instanceof Error ? error.message : 'unknown error'}`,
+        );
+      }
     }
 
     try {

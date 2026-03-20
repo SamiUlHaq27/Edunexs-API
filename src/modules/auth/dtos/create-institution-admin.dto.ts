@@ -2,7 +2,6 @@ import {
   IsEmail,
   IsOptional,
   IsString,
-  IsUUID,
   Length,
   MaxLength,
   MinLength,
@@ -37,6 +36,5 @@ export class CreateInstitutionAdminDto {
   otp?: string;
 
   @IsOptional()
-  @IsUUID()
-  profilePictureFileId?: string;
+  profilePicture?: Express.Multer.File;
 }

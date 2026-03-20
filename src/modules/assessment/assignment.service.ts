@@ -88,10 +88,7 @@ export class AssignmentService {
 
     for (const file of files) {
       this.ensureFileSizeLimit(file);
-      const savedFile = await this.uploadAndSaveFile(
-        file,
-        `assignment-${savedAssignment.id}`,
-      );
+      const savedFile = await this.uploadAndSaveFile(file);
 
       const attachment = this.assignmentAttachmentRepository.create({
         assignment: { id: savedAssignment.id },
@@ -637,10 +634,7 @@ export class AssignmentService {
       );
     }
 
-    const savedFile = await this.uploadAndSaveFile(
-      file,
-      `assignment-submission-${assignment.id}-${studentProfile.id}`,
-    );
+    const savedFile = await this.uploadAndSaveFile(file);
 
     const submittedAt = new Date();
     const isLate = submittedAt > assignment.dueDate;
@@ -754,12 +748,11 @@ export class AssignmentService {
     }
   }
 
-  private async uploadAndSaveFile(file: Express.Multer.File, prefix: string) {
+  private async uploadAndSaveFile(file: Express.Multer.File) {
     try {
-      const fileName = `${prefix}-${Date.now()}-${file.originalname}`;
       const uploadResult = await this.appwriteStorageService.uploadFile({
         file: file.buffer,
-        fileName,
+        fileName: file.originalname,
         mimeType: file.mimetype,
       });
 

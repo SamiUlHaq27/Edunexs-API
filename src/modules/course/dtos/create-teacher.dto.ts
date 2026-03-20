@@ -2,7 +2,6 @@ import {
   IsEmail,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -18,8 +17,8 @@ export class CreateTeacherDto {
   @MaxLength(30)
   password: string;
 
-  @IsUUID()
-  profilePictureFileId: string;
+  @IsOptional()
+  profilePicture?: Express.Multer.File;
 
   @IsOptional()
   @IsEmail()

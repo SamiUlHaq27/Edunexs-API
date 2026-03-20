@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   InternalServerErrorException,
@@ -14,7 +15,10 @@ import {
 import { UserRoles } from 'src/shared/consts';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
 import { hashPassword } from 'src/shared/helpers';
-import { InstitutionContextService } from 'src/shared/services';
+import {
+  AppwriteStorageService,
+  InstitutionContextService,
+} from 'src/shared/services';
 import { UserData } from 'src/shared/types';
 import { Repository } from 'typeorm';
 import { CreateStudentDto } from '../dtos/create-student.dto';
@@ -31,18 +35,48 @@ export class StudentService {
     @InjectRepository(StudentProfileEntity)
     private readonly studentProfileRepository: Repository<StudentProfileEntity>,
     private readonly institutionContextService: InstitutionContextService,
+    private readonly appwriteStorageService: AppwriteStorageService,
   ) {}
 
-  async createStudent(createStudentDto: CreateStudentDto, user: UserData) {
+  async createStudent(
+    createStudentDto: CreateStudentDto,
+    user: UserData,
+    profilePicture?: Express.Multer.File,
+  ) {
     const { name, password, rollNo, grade, recoveryEmail } = createStudentDto;
     const managerInstitution =
       await this.institutionContextService.getManagerInstitution(user);
 
-    if (createStudentDto?.profilePictureFileId)
-      await this.ensureProfilePictureExists(
-        createStudentDto?.profilePictureFileId,
-      );
     await this.ensureUniqueEmail(recoveryEmail);
+
+    let uploadedProfileFile: FileEntity | undefined;
+    if (profilePicture) {
+      const maxFileSize = 5 * 1024 * 1024;
+      if (profilePicture.size > maxFileSize) {
+        throw new BadRequestException('File size exceeds 5MB limit');
+      }
+
+      try {
+        const uploadResult = await this.appwriteStorageService.uploadFile({
+          file: profilePicture.buffer,
+          fileName: profilePicture.originalname,
+          mimeType: profilePicture.mimetype,
+        });
+
+        const fileRecord = this.fileRepository.create({
+          fileName: uploadResult.fileName,
+          fileId: uploadResult.fileId,
+          mimeType: uploadResult.mimeType,
+          sizeOriginal: uploadResult.sizeOriginal,
+        });
+
+        uploadedProfileFile = await this.fileRepository.save(fileRecord);
+      } catch (error) {
+        throw new InternalServerErrorException(
+          `Failed to upload profile picture: ${error instanceof Error ? error.message : 'unknown error'}`,
+        );
+      }
+    }
 
     const normalizedRollNo = rollNo.trim();
 
@@ -80,9 +114,9 @@ export class StudentService {
             role: UserRoles.STUDENT,
             isActive: true,
             ...(recoveryEmail && { email: recoveryEmail }),
-            ...(createStudentDto?.profilePictureFileId && {
+            ...(uploadedProfileFile && {
               profilePictureFile: {
-                id: createStudentDto?.profilePictureFileId,
+                id: uploadedProfileFile.id,
               } as FileEntity,
             }),
           });
@@ -118,6 +152,17 @@ export class StudentService {
         createdAt: result.savedStudent.createdAt,
       };
     } catch (error) {
+      if (uploadedProfileFile) {
+        try {
+          await this.appwriteStorageService.deleteFile(
+            uploadedProfileFile.fileId,
+          );
+          await this.fileRepository.delete(uploadedProfileFile.id);
+        } catch {
+          // Best effort cleanup for pre-uploaded profile picture.
+        }
+      }
+
       if (error instanceof ConflictException) {
         throw error;
       }
@@ -218,7 +263,11 @@ export class StudentService {
     };
   }
 
-  async updateStudent(updateStudentDto: UpdateStudentDto, user: UserData) {
+  async updateStudent(
+    updateStudentDto: UpdateStudentDto,
+    user: UserData,
+    profilePicture?: Express.Multer.File,
+  ) {
     const managerInstitution =
       await this.institutionContextService.getManagerInstitution(user);
     const {
@@ -227,7 +276,6 @@ export class StudentService {
       password,
       rollNo,
       grade,
-      profilePictureFileId,
       recoveryEmail,
       isActive,
     } = updateStudentDto;
@@ -275,11 +323,35 @@ export class StudentService {
       studentProfile.rollNo = normalizedRollNo;
     }
 
-    if (profilePictureFileId !== undefined) {
-      await this.ensureProfilePictureExists(profilePictureFileId);
-      studentProfile.student.profilePictureFile = {
-        id: profilePictureFileId,
-      } as FileEntity;
+    if (profilePicture) {
+      const maxFileSize = 5 * 1024 * 1024;
+      if (profilePicture.size > maxFileSize) {
+        throw new BadRequestException('File size exceeds 5MB limit');
+      }
+
+      try {
+        const uploadResult = await this.appwriteStorageService.uploadFile({
+          file: profilePicture.buffer,
+          fileName: profilePicture.originalname,
+          mimeType: profilePicture.mimetype,
+        });
+
+        const fileRecord = this.fileRepository.create({
+          fileName: uploadResult.fileName,
+          fileId: uploadResult.fileId,
+          mimeType: uploadResult.mimeType,
+          sizeOriginal: uploadResult.sizeOriginal,
+        });
+
+        const savedFile = await this.fileRepository.save(fileRecord);
+        studentProfile.student.profilePictureFile = {
+          id: savedFile.id,
+        } as FileEntity;
+      } catch (error) {
+        throw new InternalServerErrorException(
+          `Failed to upload profile picture: ${error instanceof Error ? error.message : 'unknown error'}`,
+        );
+      }
     }
 
     if (name !== undefined) studentProfile.student.name = name;
@@ -356,16 +428,6 @@ export class StudentService {
       };
     } catch {
       throw new InternalServerErrorException('Failed to delete student');
-    }
-  }
-
-  private async ensureProfilePictureExists(profilePictureFileId: string) {
-    const file = await this.fileRepository.findOne({
-      where: { id: profilePictureFileId },
-    });
-
-    if (!file) {
-      throw new NotFoundException('Profile picture file not found');
     }
   }
 

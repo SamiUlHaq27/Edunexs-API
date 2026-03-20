@@ -167,6 +167,35 @@ export class AuthService {
     // Hash password
     const hashedPassword = hashPassword(password);
 
+    let uploadedProfileFile: FileEntity | undefined;
+    if (profilePictureFile) {
+      const maxFileSize = 5 * 1024 * 1024;
+      if (profilePictureFile.size > maxFileSize) {
+        throw new BadRequestException('File size exceeds 5MB limit');
+      }
+
+      try {
+        const uploadResult = await this.appwriteStorageService.uploadFile({
+          file: profilePictureFile.buffer,
+          fileName: profilePictureFile.originalname,
+          mimeType: profilePictureFile.mimetype,
+        });
+
+        const fileRecord = this.fileRepository.create({
+          fileName: uploadResult.fileName,
+          fileId: uploadResult.fileId,
+          mimeType: uploadResult.mimeType,
+          sizeOriginal: uploadResult.sizeOriginal,
+        });
+
+        uploadedProfileFile = await this.fileRepository.save(fileRecord);
+      } catch (error) {
+        throw new InternalServerErrorException(
+          `Failed to upload profile picture: ${error instanceof Error ? error.message : 'unknown error'}`,
+        );
+      }
+    }
+
     // Create new user with institution_owner role by default
     const newUser = this.authRepository.create({
       email: email,
@@ -174,6 +203,9 @@ export class AuthService {
       name,
       role: UserRoles.INSTITUTION_OWNER,
       isActive: true,
+      ...(uploadedProfileFile && {
+        profilePictureFile: { id: uploadedProfileFile.id } as FileEntity,
+      }),
     });
 
     try {
@@ -182,36 +214,6 @@ export class AuthService {
       // Mark OTP as verified
       otpRecord.status = OtpStatuses.VERIFIED;
       await this.otpRepository.save(otpRecord);
-
-      // Handle profile picture upload if provided
-      let profilePictureFileData: FileEntity | undefined | null;
-      if (profilePictureFile) {
-        try {
-          const uploadResult = await this.uploadFile(
-            savedUser.id,
-            profilePictureFile,
-            { fileName: undefined }, // Let uploadFile generate the filename
-          );
-
-          // Link profile picture to user and fetch the saved file entity
-          const fileEntity = await this.fileRepository.findOne({
-            where: { fileId: uploadResult?.appwriteFileId },
-          });
-          profilePictureFileData = fileEntity;
-
-          if (fileEntity) {
-            savedUser.profilePictureFile = fileEntity;
-            await this.authRepository.save(savedUser);
-            profilePictureFileData = fileEntity;
-          }
-        } catch (error) {
-          this.logger.error(
-            `Failed to upload profile picture for user ${savedUser.id}`,
-            error instanceof Error ? error.message : '',
-          );
-          // Continue with signup even if profile picture upload fails
-        }
-      }
 
       // Send welcome email
       try {
@@ -242,6 +244,7 @@ export class AuthService {
       };
 
       const accessToken = this.jwtService.sign(payload);
+      const profilePictureEntity = uploadedProfileFile || null;
 
       return {
         accessToken,
@@ -249,15 +252,25 @@ export class AuthService {
           id: savedUser?.id,
           username: savedUser?.email,
           name: savedUser?.name,
-          profilePicture: this.buildProfilePictureResponse(
-            profilePictureFileData,
-          ),
+          profilePicture:
+            this.buildProfilePictureResponse(profilePictureEntity),
           role: savedUser?.role,
           isActive: savedUser?.isActive,
           createdAt: savedUser?.createdAt,
         },
       };
     } catch (error) {
+      if (uploadedProfileFile) {
+        try {
+          await this.appwriteStorageService.deleteFile(
+            uploadedProfileFile.fileId,
+          );
+          await this.fileRepository.delete(uploadedProfileFile.id);
+        } catch {
+          // Best effort cleanup for pre-uploaded profile picture.
+        }
+      }
+
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -548,8 +561,7 @@ export class AuthService {
     }
 
     try {
-      const fileName =
-        uploadDto?.fileName || `${user.id}-${Date.now()}-${file.originalname}`;
+      const fileName = uploadDto?.fileName || file.originalname;
 
       const uploadResult = await this.appwriteStorageService.uploadFile({
         file: file.buffer,

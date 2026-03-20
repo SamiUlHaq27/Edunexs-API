@@ -326,12 +326,10 @@ export class InstitutionService {
     }
 
     try {
-      const fileName = `${institution.prefix}-logo-${Date.now()}-${logoFile.originalname}`;
-
       // Upload to Appwrite
       const uploadResult = await this.appwriteStorageService.uploadFile({
         file: logoFile.buffer,
-        fileName: fileName,
+        fileName: logoFile.originalname,
         mimeType: logoFile.mimetype,
       });
 

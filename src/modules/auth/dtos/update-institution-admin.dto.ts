@@ -4,7 +4,6 @@ import {
   IsInt,
   IsOptional,
   IsString,
-  IsUUID,
   Length,
   MaxLength,
   MinLength,
@@ -44,6 +43,5 @@ export class UpdateInstitutionAdminDto {
   isActive?: boolean;
 
   @IsOptional()
-  @IsUUID()
-  profilePictureFileId?: string;
+  profilePicture?: Express.Multer.File;
 }

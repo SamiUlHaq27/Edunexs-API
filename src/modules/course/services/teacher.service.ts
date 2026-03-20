@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   InternalServerErrorException,
@@ -9,7 +10,10 @@ import { AuthEntity, FileEntity } from 'src/database/entities';
 import { UserRoles } from 'src/shared/consts';
 import { ListFiltersDto } from 'src/shared/dtos';
 import { hashPassword } from 'src/shared/helpers';
-import { InstitutionContextService } from 'src/shared/services';
+import {
+  AppwriteStorageService,
+  InstitutionContextService,
+} from 'src/shared/services';
 import { UserData } from 'src/shared/types';
 import { FindOptionsWhere, Like, Repository } from 'typeorm';
 import { CreateTeacherDto, DeleteTeacherDto, UpdateTeacherDto } from '../dtos';
@@ -22,16 +26,48 @@ export class TeacherService {
     @InjectRepository(FileEntity)
     private readonly fileRepository: Repository<FileEntity>,
     private readonly institutionContextService: InstitutionContextService,
+    private readonly appwriteStorageService: AppwriteStorageService,
   ) {}
 
-  async createTeacher(createTeacherDto: CreateTeacherDto, user: UserData) {
-    const { name, password, profilePictureFileId, recoveryEmail } =
-      createTeacherDto;
+  async createTeacher(
+    createTeacherDto: CreateTeacherDto,
+    user: UserData,
+    profilePicture?: Express.Multer.File,
+  ) {
+    const { name, password, recoveryEmail } = createTeacherDto;
     const managerInstitution =
       await this.institutionContextService.getManagerInstitution(user);
 
-    await this.ensureProfilePictureExists(profilePictureFileId);
     await this.ensureUniqueEmail(recoveryEmail);
+
+    let uploadedProfileFile: FileEntity | undefined;
+    if (profilePicture) {
+      const maxFileSize = 5 * 1024 * 1024;
+      if (profilePicture.size > maxFileSize) {
+        throw new BadRequestException('File size exceeds 5MB limit');
+      }
+
+      try {
+        const uploadResult = await this.appwriteStorageService.uploadFile({
+          file: profilePicture.buffer,
+          fileName: profilePicture.originalname,
+          mimeType: profilePicture.mimetype,
+        });
+
+        const fileRecord = this.fileRepository.create({
+          fileName: uploadResult.fileName,
+          fileId: uploadResult.fileId,
+          mimeType: uploadResult.mimeType,
+          sizeOriginal: uploadResult.sizeOriginal,
+        });
+
+        uploadedProfileFile = await this.fileRepository.save(fileRecord);
+      } catch (error) {
+        throw new InternalServerErrorException(
+          `Failed to upload profile picture: ${error instanceof Error ? error.message : 'unknown error'}`,
+        );
+      }
+    }
 
     const username = await this.generateUniqueUsername(
       managerInstitution.prefix,
@@ -46,7 +82,9 @@ export class TeacherService {
       role: UserRoles.TEACHER,
       isActive: true,
       ...(recoveryEmail && { email: recoveryEmail }),
-      profilePictureFile: { id: profilePictureFileId } as FileEntity,
+      ...(uploadedProfileFile && {
+        profilePictureFile: { id: uploadedProfileFile.id } as FileEntity,
+      }),
     });
 
     try {
@@ -64,6 +102,16 @@ export class TeacherService {
         createdAt: savedTeacher.createdAt,
       };
     } catch {
+      if (uploadedProfileFile) {
+        try {
+          await this.appwriteStorageService.deleteFile(
+            uploadedProfileFile.fileId,
+          );
+          await this.fileRepository.delete(uploadedProfileFile.id);
+        } catch {
+          // Best effort cleanup for pre-uploaded profile picture.
+        }
+      }
       throw new InternalServerErrorException('Failed to create teacher');
     }
   }
@@ -134,17 +182,15 @@ export class TeacherService {
     };
   }
 
-  async updateTeacher(updateTeacherDto: UpdateTeacherDto, user: UserData) {
+  async updateTeacher(
+    updateTeacherDto: UpdateTeacherDto,
+    user: UserData,
+    profilePicture?: Express.Multer.File,
+  ) {
     const managerInstitution =
       await this.institutionContextService.getManagerInstitution(user);
-    const {
-      teacherId,
-      name,
-      password,
-      profilePictureFileId,
-      recoveryEmail,
-      isActive,
-    } = updateTeacherDto;
+    const { teacherId, name, password, recoveryEmail, isActive } =
+      updateTeacherDto;
 
     const teacher = await this.authRepository.findOne({
       where: {
@@ -166,9 +212,33 @@ export class TeacherService {
       teacher.email = recoveryEmail;
     }
 
-    if (profilePictureFileId !== undefined) {
-      await this.ensureProfilePictureExists(profilePictureFileId);
-      teacher.profilePictureFile = { id: profilePictureFileId } as FileEntity;
+    if (profilePicture) {
+      const maxFileSize = 5 * 1024 * 1024;
+      if (profilePicture.size > maxFileSize) {
+        throw new BadRequestException('File size exceeds 5MB limit');
+      }
+
+      try {
+        const uploadResult = await this.appwriteStorageService.uploadFile({
+          file: profilePicture.buffer,
+          fileName: profilePicture.originalname,
+          mimeType: profilePicture.mimetype,
+        });
+
+        const fileRecord = this.fileRepository.create({
+          fileName: uploadResult.fileName,
+          fileId: uploadResult.fileId,
+          mimeType: uploadResult.mimeType,
+          sizeOriginal: uploadResult.sizeOriginal,
+        });
+
+        const savedFile = await this.fileRepository.save(fileRecord);
+        teacher.profilePictureFile = { id: savedFile.id } as FileEntity;
+      } catch (error) {
+        throw new InternalServerErrorException(
+          `Failed to upload profile picture: ${error instanceof Error ? error.message : 'unknown error'}`,
+        );
+      }
     }
 
     if (name !== undefined) teacher.name = name;
@@ -223,16 +293,6 @@ export class TeacherService {
       };
     } catch {
       throw new InternalServerErrorException('Failed to delete teacher');
-    }
-  }
-
-  private async ensureProfilePictureExists(profilePictureFileId: string) {
-    const file = await this.fileRepository.findOne({
-      where: { id: profilePictureFileId },
-    });
-
-    if (!file) {
-      throw new NotFoundException('Profile picture file not found');
     }
   }
 
