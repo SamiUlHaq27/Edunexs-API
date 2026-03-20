@@ -40,7 +40,7 @@ export class InstitutionEntity {
 
   @OneToOne(() => AuthEntity)
   @JoinColumn({ name: 'ownerId' })
-  owner: AuthEntity;
+  owner: Awaited<AuthEntity>;
 
   @CreateDateColumn()
   createdAt: Date;

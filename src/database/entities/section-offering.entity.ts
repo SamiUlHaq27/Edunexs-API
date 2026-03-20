@@ -34,7 +34,7 @@ export class SectionOfferingEntity {
     nullable: false,
   })
   @JoinColumn({ name: 'courseId' })
-  course: CourseEntity;
+  course: Awaited<CourseEntity>;
 
   @ManyToOne(() => AuthEntity, {
     nullable: false,
