@@ -95,13 +95,20 @@ export class InstitutionAdminController {
   @Version('1')
   @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
   @Put('profile/me')
+  @UseInterceptors(
+    FileInterceptor('profilePicture', {
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    }),
+  )
   async updateProfile(
     @Body() updateInstitutionAdminProfileDto: UpdateInstitutionAdminProfileDto,
     @User('authId') authId: number,
+    @UploadedFile() profilePicture?: Express.Multer.File,
   ) {
     return await this.institutionAdminService.updateProfile(
       authId,
       updateInstitutionAdminProfileDto,
+      profilePicture,
     );
   }
 }

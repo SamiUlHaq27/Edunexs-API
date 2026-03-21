@@ -353,6 +353,7 @@ export class InstitutionAdminService {
   async updateProfile(
     institutionAdminId: number,
     updateInstitutionAdminProfileDto: UpdateInstitutionAdminProfileDto,
+    profilePicture?: Express.Multer.File,
   ) {
     const { password, email, otp } = updateInstitutionAdminProfileDto;
 
@@ -415,6 +416,36 @@ export class InstitutionAdminService {
     if (email !== undefined) institutionAdmin.email = email;
     if (password) {
       institutionAdmin.password = hashPassword(password);
+    }
+    if (profilePicture) {
+      const maxFileSize = 5 * 1024 * 1024;
+      if (profilePicture.size > maxFileSize) {
+        throw new BadRequestException('File size exceeds 5MB limit');
+      }
+
+      try {
+        const uploadResult = await this.appwriteStorageService.uploadFile({
+          file: profilePicture.buffer,
+          fileName: profilePicture.originalname,
+          mimeType: profilePicture.mimetype,
+        });
+
+        const fileRecord = this.fileRepository.create({
+          fileName: uploadResult.fileName,
+          fileId: uploadResult.fileId,
+          mimeType: uploadResult.mimeType,
+          sizeOriginal: uploadResult.sizeOriginal,
+        });
+
+        const savedFile = await this.fileRepository.save(fileRecord);
+        institutionAdmin.profilePictureFile = {
+          id: savedFile.id,
+        } as FileEntity;
+      } catch (error) {
+        throw new InternalServerErrorException(
+          `Failed to upload profile picture: ${error instanceof Error ? error.message : 'unknown error'}`,
+        );
+      }
     }
 
     try {

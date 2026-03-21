@@ -8,7 +8,10 @@ import {
   StudentGroupEntity,
   StudentProfileEntity,
 } from 'src/database/entities';
-import { InstitutionContextService } from 'src/shared/services';
+import {
+  AppwriteStorageService,
+  InstitutionContextService,
+} from 'src/shared/services';
 import { CourseController } from './course.controller';
 import { StudentController } from './student.controller';
 import { StudentGroupController } from './student-group.controller';
@@ -43,6 +46,7 @@ import {
     StudentService,
     StudentGroupService,
     InstitutionContextService,
+    AppwriteStorageService,
   ],
   exports: [CourseService],
 })

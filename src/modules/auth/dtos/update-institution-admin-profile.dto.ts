@@ -27,4 +27,7 @@ export class UpdateInstitutionAdminProfileDto {
   @IsString()
   @Length(6, 6)
   otp?: string;
+
+  @IsOptional()
+  profilePicture?: Express.Multer.File;
 }
