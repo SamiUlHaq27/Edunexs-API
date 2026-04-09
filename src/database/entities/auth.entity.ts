@@ -1,17 +1,21 @@
-import { UserRoleEnum } from 'src/shared/enums';
 import {
   Column,
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
-  OneToOne,
   JoinColumn,
+  ManyToOne,
+  OneToOne,
   PrimaryGeneratedColumn,
+  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 import { FileEntity } from './file.entity';
+import { InstitutionEntity } from './institution.entity';
+import type { UserRolesType } from 'src/shared/types/user.type';
 
 @Entity({ name: 'tbl_auth' })
+@Unique(['institution', 'username'])
 export class AuthEntity {
   @PrimaryGeneratedColumn()
   id: number;
@@ -19,8 +23,12 @@ export class AuthEntity {
   @Column({ nullable: true, unique: true })
   email: string;
 
-  @Column({ nullable: true, unique: true })
+  @Column({ nullable: true })
   username: string;
+
+  @ManyToOne(() => InstitutionEntity)
+  @JoinColumn({ name: 'institutionPrefix', referencedColumnName: 'prefix' })
+  institution?: InstitutionEntity;
 
   @Column()
   password: string;
@@ -33,7 +41,7 @@ export class AuthEntity {
   profilePictureFile?: FileEntity;
 
   @Column({ type: 'character varying' })
-  role: UserRoleEnum;
+  role: UserRolesType;
 
   @Column({ default: true })
   isActive: boolean;
