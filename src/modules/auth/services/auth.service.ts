@@ -334,8 +334,8 @@ export class AuthService {
       throw new UnauthorizedException('Account is inactive');
     }
 
-    if (user?.role == UserRoles.INSTITUTION_OWNER && !user?.institution)
-      throw new BadRequestException('Please create your institution first');
+    // if (user?.role == UserRoles.INSTITUTION_OWNER && !user?.institution)
+    //   throw new BadRequestException('Please create your institution first');
 
     // Verify password
     const hashedPassword = hashPassword(password);
