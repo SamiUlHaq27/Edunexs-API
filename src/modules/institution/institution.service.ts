@@ -9,7 +9,11 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, FindOptionsWhere } from 'typeorm';
-import { InstitutionEntity, FileEntity } from 'src/database/entities';
+import {
+  InstitutionEntity,
+  FileEntity,
+  AuthEntity,
+} from 'src/database/entities';
 import {
   CreateInstitutionDto,
   UpdateInstitutionDto,
@@ -32,6 +36,8 @@ export class InstitutionService {
     private readonly institutionRepository: Repository<InstitutionEntity>,
     @InjectRepository(FileEntity)
     private readonly fileRepository: Repository<FileEntity>,
+    @InjectRepository(AuthEntity)
+    private readonly authRepository: Repository<AuthEntity>,
     private readonly brevoService: BrevoService,
     private readonly appwriteStorageService: AppwriteStorageService,
   ) {}
@@ -72,6 +78,13 @@ export class InstitutionService {
     try {
       const savedInstitution =
         await this.institutionRepository.save(newInstitution);
+
+      // Link the institution back to the owner's auth record
+      // This ensures user.institution is populated when they log in
+      await this.authRepository.update(
+        { id: user.authId },
+        { institution: savedInstitution },
+      );
 
       return {
         prefix: savedInstitution?.prefix,
