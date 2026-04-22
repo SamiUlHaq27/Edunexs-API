@@ -414,4 +414,51 @@ export class InstitutionService {
       relations,
     });
   }
+
+  /**
+   * Get institution by prefix (institutionId) from JWT token
+   * Works for any role: INSTITUTION_OWNER, INSTITUTION_ADMIN, etc.
+   */
+  async findMyInstitution(user: UserData) {
+    if (!user.institutionId) {
+      throw new NotFoundException('Institution not found in token');
+    }
+
+    const institution = await this.institutionRepository.findOne({
+      where: { prefix: user.institutionId },
+      relations: ['owner', 'logoFile'],
+    });
+
+    if (!institution) {
+      throw new NotFoundException('Institution not found');
+    }
+
+    // Format response with logo file data if available
+    const logoFile = institution.logoFile
+      ? {
+          dbFileId: institution.logoFile.id,
+          appwriteFileId: institution.logoFile.fileId,
+          fileName: institution.logoFile.fileName,
+          mimeType: institution.logoFile.mimeType,
+          sizeOriginal: institution.logoFile.sizeOriginal,
+          publicUrl: this.appwriteStorageService.getFileViewUrl({
+            fileId: institution.logoFile.fileId,
+          }),
+        }
+      : null;
+
+    return {
+      prefix: institution.prefix,
+      name: institution.name,
+      city: institution.city,
+      country: institution.country,
+      address: institution.address,
+      logoUrl: logoFile?.publicUrl,
+      logo: logoFile,
+      logoFile,
+      isBlocked: institution.isBlocked,
+      createdAt: institution.createdAt,
+      updatedAt: institution.updatedAt,
+    };
+  }
 }

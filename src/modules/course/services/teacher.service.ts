@@ -34,11 +34,25 @@ export class TeacherService {
     user: UserData,
     profilePicture?: Express.Multer.File,
   ) {
-    const { name, password, recoveryEmail } = createTeacherDto;
+    const { name, username, password, recoveryEmail } = createTeacherDto;
     const managerInstitution =
       await this.institutionContextService.getManagerInstitution(user);
 
     await this.ensureUniqueEmail(recoveryEmail);
+
+    // Ensure username is unique within the institution
+    const existingUser = await this.authRepository.findOne({
+      where: {
+        username,
+        institution: { prefix: managerInstitution.prefix },
+      },
+    });
+
+    if (existingUser) {
+      throw new ConflictException(
+        `Username '${username}' already exists in your institution`,
+      );
+    }
 
     let uploadedProfileFile: FileEntity | undefined;
     if (profilePicture) {
@@ -68,11 +82,6 @@ export class TeacherService {
         );
       }
     }
-
-    const username = await this.generateUniqueUsername(
-      managerInstitution.prefix,
-      name,
-    );
 
     const newTeacher = this.authRepository.create({
       username,
@@ -189,7 +198,7 @@ export class TeacherService {
   ) {
     const managerInstitution =
       await this.institutionContextService.getManagerInstitution(user);
-    const { teacherId, name, password, recoveryEmail, isActive } =
+    const { teacherId, name, username, password, recoveryEmail, isActive } =
       updateTeacherDto;
 
     const teacher = await this.authRepository.findOne({
@@ -205,6 +214,23 @@ export class TeacherService {
       throw new NotFoundException(
         'Teacher not found or does not belong to your institution',
       );
+    }
+
+    if (username !== undefined && username !== teacher.username) {
+      const existingUser = await this.authRepository.findOne({
+        where: {
+          username,
+          institution: { prefix: managerInstitution.prefix },
+        },
+      });
+
+      if (existingUser && existingUser.id !== teacherId) {
+        throw new ConflictException(
+          `Username '${username}' already exists in your institution`,
+        );
+      }
+
+      teacher.username = username;
     }
 
     if (recoveryEmail !== undefined && recoveryEmail !== teacher.email) {

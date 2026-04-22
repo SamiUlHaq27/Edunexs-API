@@ -20,6 +20,12 @@ export class UpdateTeacherDto {
 
   @IsOptional()
   @IsString()
+  @MinLength(3)
+  @MaxLength(30)
+  username?: string;
+
+  @IsOptional()
+  @IsString()
   @MinLength(6)
   @MaxLength(30)
   password?: string;
