@@ -107,6 +107,9 @@ export class TeacherService {
         isActive: savedTeacher.isActive,
         recoveryEmail: savedTeacher.email,
         profilePictureFileId: savedTeacher.profilePictureFile?.id,
+        profilePicture: this.buildProfilePictureResponse(
+          savedTeacher.profilePictureFile,
+        ),
         institutionPrefix: managerInstitution.prefix,
         createdAt: savedTeacher.createdAt,
       };
@@ -177,6 +180,7 @@ export class TeacherService {
       isActive: teacher.isActive,
       recoveryEmail: teacher.email,
       profilePictureFileId: teacher.profilePictureFile?.id,
+      profilePicture: this.buildProfilePictureResponse(teacher.profilePictureFile),
       institutionPrefix: managerInstitution.prefix,
       createdAt: teacher.createdAt,
       updatedAt: teacher.updatedAt,
@@ -284,6 +288,9 @@ export class TeacherService {
         isActive: updatedTeacher.isActive,
         recoveryEmail: updatedTeacher.email,
         profilePictureFileId: updatedTeacher.profilePictureFile?.id,
+        profilePicture: this.buildProfilePictureResponse(
+          updatedTeacher.profilePictureFile,
+        ),
         institutionPrefix: managerInstitution.prefix,
         updatedAt: updatedTeacher.updatedAt,
       };
@@ -334,6 +341,22 @@ export class TeacherService {
     if (existingAuth && existingAuth.id !== currentAuthId) {
       throw new ConflictException('Email already exists');
     }
+  }
+
+  private buildProfilePictureResponse(fileEntity?: FileEntity | null) {
+    if (!fileEntity) {
+      return null;
+    }
+
+    const publicUrl = this.appwriteStorageService.getFileViewUrl({
+      fileId: fileEntity.fileId,
+    });
+
+    return {
+      id: fileEntity.id,
+      fileId: fileEntity.fileId,
+      publicUrl,
+    };
   }
 
   private normalizeUsernameSeed(name: string) {
