@@ -140,12 +140,16 @@ export class StudentService {
 
       return {
         id: result.savedStudent.id,
+        studentProfileId: result.savedProfile.id,
         username: result.savedStudent.username,
         name: result.savedStudent.name,
         role: result.savedStudent.role,
         isActive: result.savedStudent.isActive,
         recoveryEmail: result.savedStudent.email,
         profilePictureFileId: result.savedStudent.profilePictureFile?.id,
+        profilePicture: this.buildProfilePictureResponse(
+          result.savedStudent.profilePictureFile,
+        ),
         rollNo: result.savedProfile.rollNo,
         grade: result.savedProfile.grade,
         institutionPrefix: managerInstitution.prefix,
@@ -241,12 +245,16 @@ export class StudentService {
 
     const students = data.map((studentProfile) => ({
       id: studentProfile.student.id,
+      studentProfileId: studentProfile.id,
       username: studentProfile.student.username,
       name: studentProfile.student.name,
       role: studentProfile.student.role,
       isActive: studentProfile.student.isActive,
       recoveryEmail: studentProfile.student.email,
       profilePictureFileId: studentProfile.student.profilePictureFile?.id,
+      profilePicture: this.buildProfilePictureResponse(
+        studentProfile.student.profilePictureFile,
+      ),
       rollNo: studentProfile.rollNo,
       grade: studentProfile.grade,
       institutionPrefix: managerInstitution.prefix,
@@ -380,12 +388,16 @@ export class StudentService {
 
       return {
         id: result.updatedStudent.id,
+        studentProfileId: result.updatedProfile.id,
         username: result.updatedStudent.username,
         name: result.updatedStudent.name,
         role: result.updatedStudent.role,
         isActive: result.updatedStudent.isActive,
         recoveryEmail: result.updatedStudent.email,
         profilePictureFileId: result.updatedStudent.profilePictureFile?.id,
+        profilePicture: this.buildProfilePictureResponse(
+          result.updatedStudent.profilePictureFile,
+        ),
         rollNo: result.updatedProfile.rollNo,
         grade: result.updatedProfile.grade,
         institutionPrefix: managerInstitution.prefix,
@@ -484,5 +496,21 @@ export class StudentService {
     throw new ConflictException(
       'Unable to generate unique username for this user',
     );
+  }
+
+  private buildProfilePictureResponse(fileEntity?: FileEntity | null) {
+    if (!fileEntity) {
+      return null;
+    }
+
+    const publicUrl = this.appwriteStorageService.getFileViewUrl({
+      fileId: fileEntity.fileId,
+    });
+
+    return {
+      id: fileEntity.id,
+      fileId: fileEntity.fileId,
+      publicUrl,
+    };
   }
 }
