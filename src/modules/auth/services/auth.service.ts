@@ -279,7 +279,7 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const { username, email, password } = loginDto;
+    const { username, institutionPrefix, email, password } = loginDto;
 
     // Validate that at least username or email is provided
     if (!username && !email) {
@@ -290,33 +290,21 @@ export class AuthService {
 
     let user: AuthEntity | null = null;
 
-    // If username provided, try split+retry strategy
     if (username) {
-      const underscoreIndex = username.indexOf('_');
-
-      // Try 1: If username has underscore, try institution-scoped lookup with extracted prefix
-      if (underscoreIndex > 0 && underscoreIndex < username.length - 1) {
-        const institutionPrefix = username.slice(0, underscoreIndex);
-        const localUsername = username.slice(underscoreIndex + 1);
-        user = await this.authRepository.findOne({
-          where: {
-            username: localUsername,
-            institution: { prefix: institutionPrefix },
-          },
-          relations: ['profilePictureFile', 'institution'],
-        });
+      // Username login requires institution prefix
+      if (!institutionPrefix) {
+        throw new BadRequestException(
+          'Institution prefix is required for username login',
+        );
       }
 
-      // Try 2: If not found, try global (NULL prefix) lookup
-      if (!user) {
-        user = await this.authRepository.findOne({
-          where: {
-            username: username,
-            institution: IsNull(),
-          },
-          relations: ['profilePictureFile', 'institution'],
-        });
-      }
+      user = await this.authRepository.findOne({
+        where: {
+          username: username,
+          institution: { prefix: institutionPrefix },
+        },
+        relations: ['profilePictureFile', 'institution'],
+      });
     } else if (email) {
       // Email login: query globally
       user = await this.authRepository.findOne({
@@ -333,9 +321,6 @@ export class AuthService {
     if (!user?.isActive) {
       throw new UnauthorizedException('Account is inactive');
     }
-
-    // if (user?.role == UserRoles.INSTITUTION_OWNER && !user?.institution)
-    //   throw new BadRequestException('Please create your institution first');
 
     // Verify password
     const hashedPassword = hashPassword(password);
