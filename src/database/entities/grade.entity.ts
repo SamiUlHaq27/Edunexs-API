@@ -17,6 +17,7 @@ export const GradeTypes = {
   ASSIGNMENT: 'assignment',
   QUIZ: 'quiz',
   EXAM: 'exam',
+  CUSTOM: 'custom',
 } as const;
 
 @Entity({ name: 'tbl_grade' })

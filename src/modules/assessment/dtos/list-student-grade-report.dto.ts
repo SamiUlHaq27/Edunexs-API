@@ -1,6 +1,12 @@
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional } from 'class-validator';
-import { AssessmentTypes } from 'src/database/entities/assignment.entity';
+import { GradeTypes } from 'src/database/entities';
+
+const StudentGradeTypes = [
+  GradeTypes.ASSIGNMENT,
+  GradeTypes.QUIZ,
+  GradeTypes.CUSTOM,
+] as const;
 
 export class ListStudentGradeReportDto {
   @IsInt()
@@ -16,11 +22,7 @@ export class ListStudentGradeReportDto {
   @IsOptional()
   offeringId?: number;
 
-  @IsIn([
-    AssessmentTypes.ASSIGNMENT,
-    AssessmentTypes.QUIZ,
-    AssessmentTypes.EXAM,
-  ])
+  @IsIn([...StudentGradeTypes])
   @IsOptional()
-  assessmentType?: (typeof AssessmentTypes)[keyof typeof AssessmentTypes];
+  assessmentType?: (typeof StudentGradeTypes)[number];
 }

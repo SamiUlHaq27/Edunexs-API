@@ -11,3 +11,8 @@ export * from './list-quiz-attempts.dto';
 export * from './submit-quiz-attempt.dto';
 export * from './list-student-quiz-grades.dto';
 export * from './list-student-grade-report.dto';
+export * from './create-custom-grade.dto';
+export * from './create-custom-grades.dto';
+export * from './update-teacher-grade.dto';
+export * from './teacher-gradebook.dto';
+export * from './teacher-student-grades.dto';

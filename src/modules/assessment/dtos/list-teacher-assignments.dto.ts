@@ -28,11 +28,7 @@ export class ListTeacherAssignmentsDto {
   @IsOptional()
   title?: string;
 
-  @IsIn([
-    AssessmentTypes.ASSIGNMENT,
-    AssessmentTypes.QUIZ,
-    AssessmentTypes.EXAM,
-  ])
+  @IsIn([AssessmentTypes.ASSIGNMENT, AssessmentTypes.QUIZ])
   @IsOptional()
   assessmentType?: (typeof AssessmentTypes)[keyof typeof AssessmentTypes];
 
