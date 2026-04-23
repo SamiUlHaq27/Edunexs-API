@@ -7,8 +7,10 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class UpdateStudentDto {
+  @Transform(({ value }) => Number(value))
   @IsInt()
   studentId: number;
 
@@ -45,6 +47,13 @@ export class UpdateStudentDto {
   recoveryEmail?: string;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      if (value === 'true') return true;
+      if (value === 'false') return false;
+    }
+    return value;
+  })
   @IsBoolean()
   isActive?: boolean;
 }

@@ -94,11 +94,6 @@ export class StudentService {
       );
     }
 
-    const username = await this.generateUniqueUsername(
-      managerInstitution.prefix,
-      name,
-    );
-
     try {
       const result = await this.authRepository.manager.transaction(
         async (manager) => {
@@ -107,7 +102,7 @@ export class StudentService {
             manager.getRepository(StudentProfileEntity);
 
           const newStudent = studentAuthRepository.create({
-            username,
+            username: normalizedRollNo,
             institution: { prefix: managerInstitution.prefix },
             password: hashPassword(password),
             name,
@@ -329,6 +324,7 @@ export class StudentService {
       }
 
       studentProfile.rollNo = normalizedRollNo;
+      studentProfile.student.username = normalizedRollNo;
     }
 
     if (profilePicture) {
@@ -455,47 +451,6 @@ export class StudentService {
     if (existingAuth && existingAuth.id !== currentAuthId) {
       throw new ConflictException('Email already exists');
     }
-  }
-
-  private normalizeUsernameSeed(name: string) {
-    const normalizedSeed = name
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-      .replace(/_+/g, '_');
-
-    return normalizedSeed || 'user';
-  }
-
-  private async generateUniqueUsername(
-    institutionPrefix: string,
-    name: string,
-  ) {
-    const normalizedSeed = this.normalizeUsernameSeed(name);
-    let counter = 0;
-
-    while (counter < 1000) {
-      const suffix = counter === 0 ? '' : `_${counter + 1}`;
-      const usernameCandidate = `${normalizedSeed}${suffix}`;
-
-      const existingUser = await this.authRepository.findOne({
-        where: {
-          username: usernameCandidate,
-          institution: { prefix: institutionPrefix },
-        },
-      });
-
-      if (!existingUser) {
-        return usernameCandidate;
-      }
-
-      counter += 1;
-    }
-
-    throw new ConflictException(
-      'Unable to generate unique username for this user',
-    );
   }
 
   private buildProfilePictureResponse(fileEntity?: FileEntity | null) {
