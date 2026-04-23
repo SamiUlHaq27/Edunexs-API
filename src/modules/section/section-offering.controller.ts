@@ -31,7 +31,11 @@ export class SectionOfferingController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
+  @AllowedRoles([
+    UserRoles.INSTITUTION_ADMIN,
+    UserRoles.INSTITUTION_OWNER,
+    UserRoles.TEACHER,
+  ])
   @Post('all')
   async listSectionOfferings(
     @Body() listFiltersDto: ListFiltersDto,
