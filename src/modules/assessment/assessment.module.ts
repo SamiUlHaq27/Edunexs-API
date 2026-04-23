@@ -5,6 +5,7 @@ import {
   AssignmentEntity,
   AssignmentSubmissionEntity,
   AuthEntity,
+  CustomGradeEntity,
   FileEntity,
   GradeEntity,
   InstitutionEntity,
@@ -23,6 +24,7 @@ import { QuizController } from './quiz.controller';
 import { QuizService } from './quiz.service';
 import { AssessmentController } from './assessment.controller';
 import { AssessmentReportService } from './assessment-report.service';
+import { TeacherGradebookService } from './teacher-gradebook.service';
 
 @Module({
   imports: [
@@ -31,6 +33,7 @@ import { AssessmentReportService } from './assessment-report.service';
       AssignmentAttachmentEntity,
       AssignmentSubmissionEntity,
       GradeEntity,
+      CustomGradeEntity,
       SectionOfferingEntity,
       StudentProfileEntity,
       FileEntity,
@@ -45,6 +48,7 @@ import { AssessmentReportService } from './assessment-report.service';
     AssignmentService,
     QuizService,
     AssessmentReportService,
+    TeacherGradebookService,
     InstitutionContextService,
     AppwriteStorageService,
   ],

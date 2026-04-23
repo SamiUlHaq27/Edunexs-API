@@ -9,7 +9,11 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, FindOptionsWhere } from 'typeorm';
-import { InstitutionEntity, FileEntity } from 'src/database/entities';
+import {
+  InstitutionEntity,
+  FileEntity,
+  AuthEntity,
+} from 'src/database/entities';
 import {
   CreateInstitutionDto,
   UpdateInstitutionDto,
@@ -32,6 +36,8 @@ export class InstitutionService {
     private readonly institutionRepository: Repository<InstitutionEntity>,
     @InjectRepository(FileEntity)
     private readonly fileRepository: Repository<FileEntity>,
+    @InjectRepository(AuthEntity)
+    private readonly authRepository: Repository<AuthEntity>,
     private readonly brevoService: BrevoService,
     private readonly appwriteStorageService: AppwriteStorageService,
   ) {}
@@ -72,6 +78,13 @@ export class InstitutionService {
     try {
       const savedInstitution =
         await this.institutionRepository.save(newInstitution);
+
+      // Link the institution back to the owner's auth record
+      // This ensures user.institution is populated when they log in
+      await this.authRepository.update(
+        { id: user.authId },
+        { institution: savedInstitution },
+      );
 
       return {
         prefix: savedInstitution?.prefix,
@@ -400,5 +413,52 @@ export class InstitutionService {
       where: { owner: { id: user.authId } },
       relations,
     });
+  }
+
+  /**
+   * Get institution by prefix (institutionId) from JWT token
+   * Works for any role: INSTITUTION_OWNER, INSTITUTION_ADMIN, etc.
+   */
+  async findMyInstitution(user: UserData) {
+    if (!user.institutionId) {
+      throw new NotFoundException('Institution not found in token');
+    }
+
+    const institution = await this.institutionRepository.findOne({
+      where: { prefix: user.institutionId },
+      relations: ['owner', 'logoFile'],
+    });
+
+    if (!institution) {
+      throw new NotFoundException('Institution not found');
+    }
+
+    // Format response with logo file data if available
+    const logoFile = institution.logoFile
+      ? {
+          dbFileId: institution.logoFile.id,
+          appwriteFileId: institution.logoFile.fileId,
+          fileName: institution.logoFile.fileName,
+          mimeType: institution.logoFile.mimeType,
+          sizeOriginal: institution.logoFile.sizeOriginal,
+          publicUrl: this.appwriteStorageService.getFileViewUrl({
+            fileId: institution.logoFile.fileId,
+          }),
+        }
+      : null;
+
+    return {
+      prefix: institution.prefix,
+      name: institution.name,
+      city: institution.city,
+      country: institution.country,
+      address: institution.address,
+      logoUrl: logoFile?.publicUrl,
+      logo: logoFile,
+      logoFile,
+      isBlocked: institution.isBlocked,
+      createdAt: institution.createdAt,
+      updatedAt: institution.updatedAt,
+    };
   }
 }

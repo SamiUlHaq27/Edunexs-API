@@ -24,7 +24,7 @@ export class StudentController {
   constructor(private readonly studentService: StudentService) {}
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Post()
   @UseInterceptors(
     FileInterceptor('profilePicture', {
@@ -44,7 +44,7 @@ export class StudentController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Post('all')
   async listStudents(
     @Body() listFiltersDto: ListFiltersDto,
@@ -54,7 +54,7 @@ export class StudentController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Put()
   @UseInterceptors(
     FileInterceptor('profilePicture', {
@@ -74,7 +74,7 @@ export class StudentController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Delete()
   async deleteStudent(
     @Body() deleteStudentDto: DeleteStudentDto,

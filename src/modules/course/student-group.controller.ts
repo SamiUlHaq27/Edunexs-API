@@ -14,7 +14,7 @@ export class StudentGroupController {
   constructor(private readonly studentGroupService: StudentGroupService) {}
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Post()
   async createStudentGroup(
     @Body() createStudentGroupDto: CreateStudentGroupDto,
@@ -27,7 +27,7 @@ export class StudentGroupController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Post('all')
   async listStudentGroups(
     @Body() listFiltersDto: ListFiltersDto,
@@ -40,7 +40,7 @@ export class StudentGroupController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Put()
   async updateStudentGroup(
     @Body() updateStudentGroupDto: UpdateStudentGroupDto,
@@ -53,7 +53,7 @@ export class StudentGroupController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Delete()
   async deleteStudentGroup(
     @Body() deleteStudentGroupDto: DeleteStudentGroupDto,

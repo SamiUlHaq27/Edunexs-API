@@ -16,11 +16,7 @@ export class CreateAssignmentDto {
   @Type(() => Number)
   offeringId: number;
 
-  @IsIn([
-    AssessmentTypes.ASSIGNMENT,
-    AssessmentTypes.QUIZ,
-    AssessmentTypes.EXAM,
-  ])
+  @IsIn([AssessmentTypes.ASSIGNMENT, AssessmentTypes.QUIZ])
   @IsOptional()
   assessmentType?: (typeof AssessmentTypes)[keyof typeof AssessmentTypes];
 

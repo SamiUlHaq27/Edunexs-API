@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   ConflictException,
   Injectable,
   InternalServerErrorException,
@@ -121,14 +122,42 @@ export class SectionOfferingService {
   }
 
   async listSectionOfferings(listFiltersDto: ListFiltersDto, user: UserData) {
-    const managerInstitution =
-      await this.institutionContextService.getManagerInstitution(user);
+    let institutionPrefix: string;
+    const isTeacher = user.role === UserRoles.TEACHER;
+
+    if (isTeacher) {
+      const teacherAuth = await this.authRepository.findOne({
+        where: { id: user.authId, role: UserRoles.TEACHER },
+        relations: ['institution'],
+      });
+
+      if (!teacherAuth) {
+        throw new NotFoundException('Teacher account not found');
+      }
+
+      if (!teacherAuth.institution?.prefix) {
+        throw new ForbiddenException(
+          'Teacher account is not linked to an institution',
+        );
+      }
+
+      institutionPrefix = teacherAuth.institution.prefix;
+    } else {
+      const managerInstitution =
+        await this.institutionContextService.getManagerInstitution(user);
+      institutionPrefix = managerInstitution.prefix;
+    }
+
     const { page, size, filters } = listFiltersDto;
     const skip = (page - 1) * size;
 
     const where: Record<string, unknown> = {
-      section: { institution: { prefix: managerInstitution.prefix } },
+      section: { institution: { prefix: institutionPrefix } },
     };
+
+    if (isTeacher) {
+      where.teacher = { id: user.authId };
+    }
 
     if (filters && typeof filters === 'object') {
       const typedFilters = filters as Record<string, unknown>;
@@ -144,7 +173,7 @@ export class SectionOfferingService {
         where.course = { id: Number(typedFilters.courseId) };
       }
 
-      if (typedFilters.teacherId !== undefined) {
+      if (!isTeacher && typedFilters.teacherId !== undefined) {
         where.teacher = { id: Number(typedFilters.teacherId) };
       }
 

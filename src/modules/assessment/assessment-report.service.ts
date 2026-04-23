@@ -88,8 +88,8 @@ export class AssessmentReportService {
         where.gradeType = GradeTypes.ASSIGNMENT;
       } else if (assessmentType === 'quiz') {
         where.gradeType = GradeTypes.QUIZ;
-      } else if (assessmentType === 'exam') {
-        where.gradeType = GradeTypes.EXAM;
+      } else if (assessmentType === 'custom') {
+        where.gradeType = GradeTypes.CUSTOM;
       }
     }
 
@@ -120,7 +120,7 @@ export class AssessmentReportService {
           averagesByType: {
             assignment: null,
             quiz: null,
-            exam: null,
+            custom: null,
           },
           overallPercentage: null,
         },
@@ -200,7 +200,7 @@ export class AssessmentReportService {
     > = {
       assignment: { totalPercentage: 0, count: 0 },
       quiz: { totalPercentage: 0, count: 0 },
-      exam: { totalPercentage: 0, count: 0 },
+      custom: { totalPercentage: 0, count: 0 },
     };
 
     for (const grade of grades) {
@@ -228,6 +228,9 @@ export class AssessmentReportService {
           sectionName = quiz.sectionOffering?.section?.name ?? null;
           courseName = quiz.sectionOffering?.course?.title ?? null;
         }
+      } else if (grade.gradeType === GradeTypes.CUSTOM) {
+        title = 'Custom Grade';
+        maxGrade = 100;
       }
 
       if (!sectionName || !courseName) {
@@ -247,9 +250,9 @@ export class AssessmentReportService {
         } else if (grade.gradeType === GradeTypes.QUIZ) {
           perTypeAccum.quiz.totalPercentage += percentage;
           perTypeAccum.quiz.count += 1;
-        } else if (grade.gradeType === GradeTypes.EXAM) {
-          perTypeAccum.exam.totalPercentage += percentage;
-          perTypeAccum.exam.count += 1;
+        } else if (grade.gradeType === GradeTypes.CUSTOM) {
+          perTypeAccum.custom.totalPercentage += percentage;
+          perTypeAccum.custom.count += 1;
         }
       }
 
@@ -271,13 +274,13 @@ export class AssessmentReportService {
       });
     }
 
-    const typeAverage = (key: 'assignment' | 'quiz' | 'exam') => {
+    const typeAverage = (key: 'assignment' | 'quiz' | 'custom') => {
       const { totalPercentage, count } = perTypeAccum[key];
       return count > 0 ? Number((totalPercentage / count).toFixed(2)) : null;
     };
 
     const allPercentages: number[] = [];
-    for (const key of ['assignment', 'quiz', 'exam'] as const) {
+    for (const key of ['assignment', 'quiz', 'custom'] as const) {
       const { totalPercentage, count } = perTypeAccum[key];
       if (count > 0) {
         allPercentages.push(totalPercentage);
@@ -306,7 +309,7 @@ export class AssessmentReportService {
         averagesByType: {
           assignment: typeAverage('assignment'),
           quiz: typeAverage('quiz'),
-          exam: typeAverage('exam'),
+          custom: typeAverage('custom'),
         },
         overallPercentage,
       },

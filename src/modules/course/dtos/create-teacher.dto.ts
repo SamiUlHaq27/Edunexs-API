@@ -13,6 +13,11 @@ export class CreateTeacherDto {
   name: string;
 
   @IsString()
+  @MinLength(3)
+  @MaxLength(30)
+  username: string;
+
+  @IsString()
   @MinLength(6)
   @MaxLength(30)
   password: string;

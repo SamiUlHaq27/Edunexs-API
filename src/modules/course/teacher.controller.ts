@@ -22,7 +22,7 @@ export class TeacherController {
   constructor(private readonly teacherService: TeacherService) {}
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Post()
   @UseInterceptors(
     FileInterceptor('profilePicture', {
@@ -42,7 +42,7 @@ export class TeacherController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Post('all')
   async listTeachers(
     @Body() listFiltersDto: ListFiltersDto,
@@ -52,7 +52,7 @@ export class TeacherController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Put()
   @UseInterceptors(
     FileInterceptor('profilePicture', {
@@ -72,7 +72,7 @@ export class TeacherController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Delete()
   async deleteTeacher(
     @Body() deleteTeacherDto: DeleteTeacherDto,

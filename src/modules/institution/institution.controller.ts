@@ -51,10 +51,16 @@ export class InstitutionController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_OWNER])
+  @AllowedRoles([
+    UserRoles.INSTITUTION_OWNER,
+    UserRoles.INSTITUTION_ADMIN,
+    UserRoles.TEACHER,
+    UserRoles.STUDENT,
+    UserRoles.PARENT,
+  ])
   @Get('my-institution')
   async getMyInstitution(@User() user: UserData) {
-    return await this.institutionService.findByOwner(user);
+    return await this.institutionService.findMyInstitution(user);
   }
 
   @Version('1')

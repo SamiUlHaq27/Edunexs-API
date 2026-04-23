@@ -9,8 +9,10 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class UpdateInstitutionAdminDto {
+  @Transform(({ value }) => Number(value))
   @IsInt()
   institutionAdminId: number;
 
@@ -39,6 +41,13 @@ export class UpdateInstitutionAdminDto {
   otp?: string;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      if (value === 'true') return true;
+      if (value === 'false') return false;
+    }
+    return value;
+  })
   @IsBoolean()
   isActive?: boolean;
 
