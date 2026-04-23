@@ -15,3 +15,4 @@ export * from './grade.entity';
 export * from './quiz.entity';
 export * from './quiz-attempt.entity';
 export * from './parent-login.entity';
+export * from './fee.entity';
