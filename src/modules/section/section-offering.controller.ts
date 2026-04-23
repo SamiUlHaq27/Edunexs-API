@@ -18,7 +18,7 @@ export class SectionOfferingController {
   ) {}
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Post()
   async createSectionOffering(
     @Body() createSectionOfferingDto: CreateSectionOfferingDto,
@@ -31,7 +31,7 @@ export class SectionOfferingController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Post('all')
   async listSectionOfferings(
     @Body() listFiltersDto: ListFiltersDto,
@@ -44,7 +44,7 @@ export class SectionOfferingController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Put()
   async updateSectionOffering(
     @Body() updateSectionOfferingDto: UpdateSectionOfferingDto,
@@ -57,7 +57,7 @@ export class SectionOfferingController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Delete()
   async deleteSectionOffering(
     @Body() deleteSectionOfferingDto: DeleteSectionOfferingDto,

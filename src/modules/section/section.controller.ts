@@ -12,7 +12,7 @@ export class SectionController {
   constructor(private readonly sectionService: SectionService) {}
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Post()
   async createSection(
     @Body() createSectionDto: CreateSectionDto,
@@ -22,7 +22,7 @@ export class SectionController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Post('all')
   async listSections(
     @Body() listFiltersDto: ListFiltersDto,
@@ -32,7 +32,7 @@ export class SectionController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Put()
   async updateSection(
     @Body() updateSectionDto: UpdateSectionDto,
@@ -42,7 +42,7 @@ export class SectionController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoles.INSTITUTION_ADMIN])
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Delete()
   async deleteSection(
     @Body() deleteSectionDto: DeleteSectionDto,
