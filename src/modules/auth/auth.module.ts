@@ -2,17 +2,20 @@ import { Global, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
-import { getSecretValue } from 'src/config/secret.config';
 import { InstitutionAdminController } from './institution-admin.controller';
+import { ParentController } from './parent.controller';
+import { getSecretValue } from 'src/config/secret.config';
 import {
   AuthEntity,
   FileEntity,
   InstitutionEntity,
   OtpEntity,
   ParentLoginEntity,
+  ParentStudentEntity,
   StudentProfileEntity,
 } from 'src/database/entities';
 import { AuthService, InstitutionAdminService } from './services';
+import { ParentService } from './services/parent.service';
 import { BrevoService, AppwriteStorageService } from 'src/shared/services';
 
 @Global()
@@ -24,6 +27,7 @@ import { BrevoService, AppwriteStorageService } from 'src/shared/services';
       FileEntity,
       InstitutionEntity,
       ParentLoginEntity,
+      ParentStudentEntity,
       StudentProfileEntity,
     ]),
     JwtModule.register({
@@ -31,10 +35,11 @@ import { BrevoService, AppwriteStorageService } from 'src/shared/services';
       signOptions: { expiresIn: '24h' },
     }),
   ],
-  controllers: [AuthController, InstitutionAdminController],
+  controllers: [AuthController, InstitutionAdminController, ParentController],
   providers: [
     AuthService,
     InstitutionAdminService,
+    ParentService,
     BrevoService,
     AppwriteStorageService,
   ],

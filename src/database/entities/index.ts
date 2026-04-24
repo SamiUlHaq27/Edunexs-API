@@ -16,4 +16,5 @@ export * from './custom-grade.entity';
 export * from './quiz.entity';
 export * from './quiz-attempt.entity';
 export * from './parent-login.entity';
+export * from './parent-student.entity';
 export * from './fee.entity';

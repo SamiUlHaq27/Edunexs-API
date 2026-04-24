@@ -7,13 +7,17 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { AuthEntity } from 'src/database/entities/auth.entity';
 import { FileEntity } from 'src/database/entities/file.entity';
 import { InstitutionEntity } from 'src/database/entities/institution.entity';
 import { OtpEntity } from 'src/database/entities/otp.entity';
-import { ParentLoginEntity, StudentProfileEntity } from 'src/database/entities';
+import {
+  ParentLoginEntity,
+  ParentStudentEntity,
+  StudentProfileEntity,
+} from 'src/database/entities';
 import { OtpStatuses, OtpTypes, UserRoles } from 'src/shared/consts';
 import {
   SignupDto,
@@ -47,6 +51,8 @@ export class AuthService {
     private readonly fileRepository: Repository<FileEntity>,
     @InjectRepository(ParentLoginEntity)
     private readonly parentLoginRepository: Repository<ParentLoginEntity>,
+    @InjectRepository(ParentStudentEntity)
+    private readonly parentStudentRepository: Repository<ParentStudentEntity>,
     @InjectRepository(StudentProfileEntity)
     private readonly studentProfileRepository: Repository<StudentProfileEntity>,
     private readonly jwtService: JwtService,
@@ -356,59 +362,79 @@ export class AuthService {
   }
 
   async parentLogin(parentLoginDto: ParentLoginDto) {
-    const { username, password } = parentLoginDto;
+    const { username, institutionPrefix, password } = parentLoginDto;
 
-    if (!username) {
-      throw new BadRequestException('Username is required');
-    }
+    // Support two flows:
+    // 1. New flow: institutionPrefix + username (explicit)
+    // 2. Legacy flow: username with prefix (e.g., "inst_username")
 
-    let student: AuthEntity | null = null;
+    let parentAuth: AuthEntity | null = null;
+    let linkedStudentIds: number[] = [];
 
-    const underscoreIndex = username.indexOf('_');
-
-    if (underscoreIndex > 0 && underscoreIndex < username.length - 1) {
-      const institutionPrefix = username.slice(0, underscoreIndex);
-      const localUsername = username.slice(underscoreIndex + 1);
-      student = await this.authRepository.findOne({
+    if (institutionPrefix && username) {
+      // New flow: explicit institution prefix and username
+      parentAuth = await this.authRepository.findOne({
         where: {
-          username: localUsername,
-          role: UserRoles.STUDENT,
+          username,
+          role: UserRoles.PARENT,
           institution: { prefix: institutionPrefix },
         },
         relations: ['institution'],
       });
+
+      if (parentAuth) {
+        // Fetch linked student profile IDs
+        const links = await this.parentStudentRepository.find({
+          where: { parent: { id: parentAuth.id } },
+          relations: ['studentProfile'],
+        });
+        linkedStudentIds = links.map((link) => link.studentProfile.id);
+      }
+    } else if (username && !institutionPrefix) {
+      // Legacy flow: parse username like "inst_username"
+      const underscoreIndex = username.indexOf('_');
+
+      if (underscoreIndex > 0 && underscoreIndex < username.length - 1) {
+        const parsedPrefix = username.slice(0, underscoreIndex);
+        const localUsername = username.slice(underscoreIndex + 1);
+
+        // First try new model (AuthEntity with PARENT role)
+        parentAuth = await this.authRepository.findOne({
+          where: {
+            username: localUsername,
+            role: UserRoles.PARENT,
+            institution: { prefix: parsedPrefix },
+          },
+          relations: ['institution'],
+        });
+
+        if (parentAuth) {
+          // Fetch linked student profile IDs
+          const links = await this.parentStudentRepository.find({
+            where: { parent: { id: parentAuth.id } },
+            relations: ['studentProfile'],
+          });
+          linkedStudentIds = links.map((link) => link.studentProfile.id);
+        }
+      }
     }
 
-    if (!student) {
+    if (!parentAuth || !parentAuth.isActive) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (!student.isActive) {
-      throw new UnauthorizedException('Account is inactive');
-    }
-
-    const parentLogin = await this.parentLoginRepository.findOne({
-      where: { student: { id: student.id } },
-      relations: ['student', 'studentProfile'],
-    });
-
-    if (!parentLogin || !parentLogin.isEnabled) {
-      throw new UnauthorizedException(
-        'Parent login is not enabled for this student',
-      );
-    }
-
+    // Verify password
     const hashedPassword = hashPassword(password);
-    if (parentLogin.password !== hashedPassword) {
+    if (parentAuth.password !== hashedPassword) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Generate JWT token
     const payload: UserData = {
-      authId: parentLogin.id,
-      username: student.username || student.email,
+      authId: parentAuth.id,
+      username: parentAuth.email || parentAuth.username,
       role: UserRoles.PARENT,
-      institutionId: student?.institution?.prefix,
-      studentProfileId: parentLogin.studentProfile?.id ?? null,
+      institutionId: parentAuth?.institution?.prefix,
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -416,11 +442,14 @@ export class AuthService {
     return {
       accessToken,
       user: {
-        id: parentLogin.id,
-        username: payload.username,
-        role: payload.role,
-        institutionId: payload.institutionId,
-        studentProfileId: payload.studentProfileId,
+        id: parentAuth.id,
+        username: parentAuth.username,
+        name: parentAuth.name,
+        role: UserRoles.PARENT,
+        institutionId: parentAuth.institution?.prefix,
+        linkedStudentIds: linkedStudentIds,
+        isActive: parentAuth.isActive,
+        createdAt: parentAuth.createdAt,
       },
     };
   }
