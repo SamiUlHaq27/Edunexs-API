@@ -124,6 +124,7 @@ export class SectionOfferingService {
   async listSectionOfferings(listFiltersDto: ListFiltersDto, user: UserData) {
     let institutionPrefix: string;
     const isTeacher = user.role === UserRoles.TEACHER;
+    const isStudent = user.role === UserRoles.STUDENT;
 
     if (isTeacher) {
       const teacherAuth = await this.authRepository.findOne({
@@ -142,6 +143,25 @@ export class SectionOfferingService {
       }
 
       institutionPrefix = teacherAuth.institution.prefix;
+    } else if (isStudent) {
+      const studentProfile = await this.studentProfileRepository.findOne({
+        where: {
+          student: { id: user.authId, role: UserRoles.STUDENT },
+        },
+        relations: ['student', 'institution'],
+      });
+
+      if (!studentProfile) {
+        throw new NotFoundException('Student profile not found');
+      }
+
+      if (!studentProfile.institution?.prefix) {
+        throw new ForbiddenException(
+          'Student profile is not linked to an institution',
+        );
+      }
+
+      institutionPrefix = studentProfile.institution.prefix;
     } else {
       const managerInstitution =
         await this.institutionContextService.getManagerInstitution(user);
@@ -159,6 +179,21 @@ export class SectionOfferingService {
       where.teacher = { id: user.authId };
     }
 
+    if (isStudent) {
+      const studentProfile = await this.studentProfileRepository.findOne({
+        where: {
+          student: { id: user.authId, role: UserRoles.STUDENT },
+        },
+        relations: ['student'],
+      });
+
+      if (!studentProfile) {
+        throw new NotFoundException('Student profile not found');
+      }
+
+      where.students = { id: studentProfile.id };
+    }
+
     if (filters && typeof filters === 'object') {
       const typedFilters = filters as Record<string, unknown>;
 
@@ -173,7 +208,7 @@ export class SectionOfferingService {
         where.course = { id: Number(typedFilters.courseId) };
       }
 
-      if (!isTeacher && typedFilters.teacherId !== undefined) {
+      if (!isTeacher && !isStudent && typedFilters.teacherId !== undefined) {
         where.teacher = { id: Number(typedFilters.teacherId) };
       }
 

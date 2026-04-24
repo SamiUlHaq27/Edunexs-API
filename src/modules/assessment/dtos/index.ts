@@ -9,6 +9,7 @@ export * from './update-quiz.dto';
 export * from './list-teacher-quizzes.dto';
 export * from './list-quiz-attempts.dto';
 export * from './submit-quiz-attempt.dto';
+export * from './student-quiz-detail.dto';
 export * from './list-student-quiz-grades.dto';
 export * from './list-student-grade-report.dto';
 export * from './create-custom-grade.dto';
