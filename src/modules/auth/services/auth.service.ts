@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { AuthEntity } from 'src/database/entities/auth.entity';
 import { FileEntity } from 'src/database/entities/file.entity';
@@ -334,12 +334,28 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    let linkedStudentIds: number[] = [];
+    let defaultStudentProfileId: number | null = null;
+
+    if (user.role === UserRoles.PARENT) {
+      const links = await this.parentStudentRepository.find({
+        where: { parent: { id: user.id } },
+        relations: ['studentProfile'],
+      });
+
+      linkedStudentIds = links.map((link) => link.studentProfile.id);
+      defaultStudentProfileId = linkedStudentIds[0] ?? null;
+    }
+
     // Generate JWT token
     const payload: UserData = {
       authId: user.id,
       username: user.email,
       role: user.role,
       institutionId: user?.institution?.prefix,
+      ...(user.role === UserRoles.PARENT && {
+        studentProfileId: defaultStudentProfileId,
+      }),
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -355,6 +371,10 @@ export class AuthService {
         ),
         role: user?.role,
         institutionId: user?.institution?.prefix,
+        ...(user?.role === UserRoles.PARENT && {
+          studentProfileId: defaultStudentProfileId,
+          linkedStudentIds,
+        }),
         isActive: user?.isActive,
         createdAt: user?.createdAt,
       },
@@ -435,6 +455,7 @@ export class AuthService {
       username: parentAuth.email || parentAuth.username,
       role: UserRoles.PARENT,
       institutionId: parentAuth?.institution?.prefix,
+      studentProfileId: linkedStudentIds[0] ?? null,
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -447,6 +468,7 @@ export class AuthService {
         name: parentAuth.name,
         role: UserRoles.PARENT,
         institutionId: parentAuth.institution?.prefix,
+        studentProfileId: linkedStudentIds[0] ?? null,
         linkedStudentIds: linkedStudentIds,
         isActive: parentAuth.isActive,
         createdAt: parentAuth.createdAt,

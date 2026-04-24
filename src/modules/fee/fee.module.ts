@@ -4,6 +4,7 @@ import {
   AuthEntity,
   FeeEntity,
   InstitutionEntity,
+  ParentStudentEntity,
   StudentGroupEntity,
   StudentProfileEntity,
 } from 'src/database/entities';
@@ -18,6 +19,7 @@ import { FeeService } from './services';
       FeeEntity,
       StudentProfileEntity,
       StudentGroupEntity,
+      ParentStudentEntity,
       InstitutionEntity,
     ]),
   ],

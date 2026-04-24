@@ -101,6 +101,32 @@ export class AssignmentController {
 
   @Version('1')
   @AllowedRoles([UserRoles.STUDENT])
+  @Post('student/my-submission')
+  async getMySubmission(
+    @Body() body: { assignmentId: number },
+    @User() user: UserData,
+  ) {
+    return await this.assignmentService.getMySubmission(
+      body.assignmentId,
+      user,
+    );
+  }
+
+  @Version('1')
+  @AllowedRoles([UserRoles.STUDENT])
+  @Post('student/remove-submission')
+  async removeSubmission(
+    @Body() body: { assignmentId: number },
+    @User() user: UserData,
+  ) {
+    return await this.assignmentService.removeSubmission(
+      body.assignmentId,
+      user,
+    );
+  }
+
+  @Version('1')
+  @AllowedRoles([UserRoles.STUDENT])
   @Post('student/submit')
   @UseInterceptors(
     FileInterceptor('file', {

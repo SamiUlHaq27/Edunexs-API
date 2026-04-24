@@ -771,6 +771,72 @@ export class AssignmentService {
     }
   }
 
+  async getMySubmission(assignmentId: number, user: UserData) {
+    const studentProfile = await this.getStudentProfileForUser(user.authId);
+
+    const submission = await this.assignmentSubmissionRepository.findOne({
+      where: {
+        assignment: { id: assignmentId },
+        studentProfile: { id: studentProfile.id },
+      },
+      relations: ['submittedFile', 'assignment'],
+    });
+
+    if (!submission) {
+      return { submission: null, hasSubmission: false };
+    }
+
+    return {
+      submission: {
+        id: submission.id,
+        submittedAt: submission.submittedAt,
+        isLate: submission.isLate,
+        status: submission.status,
+        file: this.mapFile(submission.submittedFile),
+      },
+      hasSubmission: true,
+    };
+  }
+
+  async removeSubmission(assignmentId: number, user: UserData) {
+    const studentProfile = await this.getStudentProfileForUser(user.authId);
+
+    const submission = await this.assignmentSubmissionRepository.findOne({
+      where: {
+        assignment: { id: assignmentId },
+        studentProfile: { id: studentProfile.id },
+      },
+      relations: ['submittedFile'],
+    });
+
+    if (!submission) {
+      throw new NotFoundException('Submission not found');
+    }
+
+    const oldFileId = submission.submittedFile?.fileId;
+
+    // Delete from Appwrite storage
+    if (oldFileId) {
+      try {
+        await this.appwriteStorageService.deleteFile(oldFileId);
+      } catch (error) {
+        this.logger.warn(
+          `Failed to delete old file from storage: ${oldFileId}`,
+        );
+        // Continue anyway; DB record is primary
+      }
+    }
+
+    // Delete DB record
+    await this.assignmentSubmissionRepository.remove(submission);
+
+    return {
+      message: 'Submission removed successfully',
+      assignmentId,
+      studentProfileId: studentProfile.id,
+    };
+  }
+
   private mapFile(file?: FileEntity | null) {
     if (!file) {
       return null;

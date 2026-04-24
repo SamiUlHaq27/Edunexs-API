@@ -21,6 +21,10 @@ export class ListStudentAttendanceDto {
   offeringId?: number;
 
   @IsOptional()
+  @IsInt()
+  studentProfileId?: number;
+
+  @IsOptional()
   @IsDateString()
   fromDate?: string;
 

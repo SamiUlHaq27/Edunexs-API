@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import {
   FeeEntity,
   FeeStatus,
+  ParentStudentEntity,
   StudentGroupEntity,
   StudentProfileEntity,
 } from 'src/database/entities';
@@ -28,6 +29,8 @@ export class FeeService {
     private readonly studentProfileRepository: Repository<StudentProfileEntity>,
     @InjectRepository(StudentGroupEntity)
     private readonly studentGroupRepository: Repository<StudentGroupEntity>,
+    @InjectRepository(ParentStudentEntity)
+    private readonly parentStudentRepository: Repository<ParentStudentEntity>,
     private readonly institutionContextService: InstitutionContextService,
   ) {}
 
@@ -104,6 +107,105 @@ export class FeeService {
       managerInstitution.prefix,
       filters as Record<string, unknown>,
     );
+
+    const [data, total] = await this.feeRepository.findAndCount({
+      where,
+      relations: ['studentProfile', 'studentProfile.student', 'institution'],
+      order: { createdAt: 'DESC' },
+      skip,
+      take: size,
+    });
+
+    return {
+      data: data.map((fee) => this.buildFeeResponse(fee)),
+      total,
+      page,
+      size,
+      totalPages: Math.ceil(total / size),
+    };
+  }
+
+  async listStudentFees(listFiltersDto: ListFiltersDto, user: UserData) {
+    let studentProfile: StudentProfileEntity | null = null;
+
+    if (user.role === UserRoles.STUDENT) {
+      studentProfile = await this.studentProfileRepository.findOne({
+        where: { student: { id: user.authId } },
+        relations: ['student', 'institution'],
+      });
+    } else if (user.role === UserRoles.PARENT) {
+      const filters =
+        listFiltersDto.filters && typeof listFiltersDto.filters === 'object'
+          ? (listFiltersDto.filters as Record<string, unknown>)
+          : {};
+
+      const selectedStudentProfileId =
+        filters.studentProfileId !== undefined
+          ? Number(filters.studentProfileId)
+          : user.studentProfileId;
+
+      if (!selectedStudentProfileId || Number.isNaN(selectedStudentProfileId)) {
+        throw new BadRequestException('A student profile is required');
+      }
+
+      const link = await this.parentStudentRepository.findOne({
+        where: {
+          parent: { id: user.authId },
+          studentProfile: { id: selectedStudentProfileId },
+        },
+      });
+
+      if (!link) {
+        throw new NotFoundException(
+          'Selected student is not linked to this parent account',
+        );
+      }
+
+      studentProfile = await this.studentProfileRepository.findOne({
+        where: { id: selectedStudentProfileId },
+        relations: ['student', 'institution'],
+      });
+    }
+
+    if (!studentProfile) {
+      throw new NotFoundException('Student profile not found');
+    }
+
+    const page = listFiltersDto.page;
+    const size = listFiltersDto.size;
+    const skip = (page - 1) * size;
+    const filters =
+      listFiltersDto.filters && typeof listFiltersDto.filters === 'object'
+        ? (listFiltersDto.filters as Record<string, unknown>)
+        : {};
+
+    const statusFilter = this.toFeeStatus(filters.status);
+    const search =
+      typeof filters.search === 'string' ? filters.search.trim() : '';
+
+    const baseWhere: FindOptionsWhere<FeeEntity> = {
+      institution: { prefix: studentProfile.institution?.prefix },
+      studentProfile: { id: studentProfile.id },
+    };
+
+    const withStatus = (where: FindOptionsWhere<FeeEntity>) => {
+      if (!statusFilter) {
+        return where;
+      }
+
+      return {
+        ...where,
+        status: statusFilter,
+      };
+    };
+
+    const where: FindOptionsWhere<FeeEntity>[] | FindOptionsWhere<FeeEntity> =
+      search
+        ? [
+            withStatus({ ...baseWhere, invoiceNo: Like(`%${search}%`) }),
+            withStatus({ ...baseWhere, title: Like(`%${search}%`) }),
+          ]
+        : withStatus(baseWhere);
 
     const [data, total] = await this.feeRepository.findAndCount({
       where,

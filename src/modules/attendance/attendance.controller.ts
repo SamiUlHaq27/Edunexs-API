@@ -52,7 +52,7 @@ export class AttendanceController {
   }
 
   @Version('1')
-  @AllowedRoles([UserRoles.STUDENT])
+  @AllowedRoles([UserRoles.STUDENT, UserRoles.PARENT])
   @Post('student/all')
   async listStudentAttendance(
     @Body() listStudentAttendanceDto: ListStudentAttendanceDto,

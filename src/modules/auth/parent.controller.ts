@@ -127,6 +127,16 @@ export class ParentController {
    * NEW: Get students linked to a parent
    */
   @Version('1')
+  @AllowedRoles([UserRoles.PARENT])
+  @Get('me/students')
+  async getMyLinkedStudents(@User() user: UserData) {
+    return await this.parentService.getMyLinkedStudents(user);
+  }
+
+  /**
+   * NEW: Get students linked to a parent
+   */
+  @Version('1')
   @AllowedRoles([UserRoles.INSTITUTION_OWNER, UserRoles.INSTITUTION_ADMIN])
   @Get(':id/students')
   async getLinkedStudents(

@@ -39,17 +39,60 @@ export class ParentService {
     private readonly dataSource: DataSource,
   ) {}
 
+  private normalizeStudentProfileIds(input: unknown): number[] {
+    const rawValues: unknown[] = Array.isArray(input)
+      ? input
+      : typeof input === 'string'
+        ? [input]
+        : [];
+
+    const normalized = rawValues
+      .flatMap((value) => {
+        if (typeof value === 'number') return [value];
+        if (typeof value !== 'string') return [];
+
+        const trimmed = value.trim();
+        if (!trimmed) return [];
+
+        // Accept legacy payloads like "{\"2\"}" and "[2,3]"
+        if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+          return trimmed
+            .slice(1, -1)
+            .split(',')
+            .map((part) => part.replace(/"/g, '').trim())
+            .filter(Boolean);
+        }
+
+        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        }
+
+        return [trimmed];
+      })
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && value > 0);
+
+    return [...new Set(normalized)];
+  }
+
   /**
    * Create a new parent and link them to one or more students
    */
   async createParent(createParentDto: CreateParentDto, user: UserData) {
     const { name, username, password, studentProfileIds, isEnabled } =
       createParentDto;
+    const normalizedStudentProfileIds =
+      this.normalizeStudentProfileIds(studentProfileIds);
 
     if (!user?.institutionId)
       throw new NotFoundException('Unable to find your institution.');
 
-    if (!studentProfileIds || studentProfileIds.length === 0) {
+    if (normalizedStudentProfileIds.length === 0) {
       throw new BadRequestException(
         'At least one student must be linked to the parent.',
       );
@@ -73,13 +116,13 @@ export class ParentService {
     // Fetch all student profiles to validate they exist and belong to the same institution
     const studentProfiles = await this.studentProfileRepository.find({
       where: {
-        id: In(studentProfileIds),
+        id: In(normalizedStudentProfileIds),
         institution: { prefix: user.institutionId },
       },
       relations: ['student', 'institution'],
     });
 
-    if (studentProfiles.length !== studentProfileIds.length) {
+    if (studentProfiles.length !== normalizedStudentProfileIds.length) {
       throw new BadRequestException(
         'One or more students not found in your institution.',
       );
@@ -88,7 +131,7 @@ export class ParentService {
     // Check if any student is already linked to another parent
     const existingLinks = await this.parentStudentRepository.find({
       where: {
-        studentProfile: { id: In(studentProfileIds) },
+        studentProfile: { id: In(normalizedStudentProfileIds) },
       },
     });
 
@@ -144,6 +187,14 @@ export class ParentService {
       ) {
         throw error;
       }
+
+      if (error instanceof Error && error.message) {
+        // Helps diagnose schema/migration issues during setup.
+        throw new InternalServerErrorException(
+          `Failed to create parent: ${error.message}`,
+        );
+      }
+
       throw new InternalServerErrorException('Failed to create parent');
     } finally {
       await queryRunner.release();
@@ -286,8 +337,10 @@ export class ParentService {
       throw new NotFoundException('Unable to find your institution.');
 
     const { studentProfileIds } = addStudentsDto;
+    const normalizedStudentProfileIds =
+      this.normalizeStudentProfileIds(studentProfileIds);
 
-    if (!studentProfileIds || studentProfileIds.length === 0) {
+    if (normalizedStudentProfileIds.length === 0) {
       throw new BadRequestException('At least one student must be provided.');
     }
 
@@ -306,12 +359,12 @@ export class ParentService {
     // Fetch student profiles
     const studentProfiles = await this.studentProfileRepository.find({
       where: {
-        id: In(studentProfileIds),
+        id: In(normalizedStudentProfileIds),
         institution: { prefix: user.institutionId },
       },
     });
 
-    if (studentProfiles.length !== studentProfileIds.length) {
+    if (studentProfiles.length !== normalizedStudentProfileIds.length) {
       throw new BadRequestException(
         'One or more students not found in your institution.',
       );
@@ -320,8 +373,9 @@ export class ParentService {
     // Check for existing links (either to this parent or other parents)
     const existingLinks = await this.parentStudentRepository.find({
       where: {
-        studentProfile: { id: In(studentProfileIds) },
+        studentProfile: { id: In(normalizedStudentProfileIds) },
       },
+      relations: ['parent', 'studentProfile'],
     });
 
     // Check for conflicts
@@ -338,7 +392,7 @@ export class ParentService {
     const alreadyLinked = existingLinks
       .filter((link) => link.parent.id === parentId)
       .map((link) => link.studentProfile.id);
-    const newStudentIds = studentProfileIds.filter(
+    const newStudentIds = normalizedStudentProfileIds.filter(
       (id) => !alreadyLinked.includes(id),
     );
 
@@ -390,8 +444,10 @@ export class ParentService {
       throw new NotFoundException('Unable to find your institution.');
 
     const { studentProfileIds } = removeStudentsDto;
+    const normalizedStudentProfileIds =
+      this.normalizeStudentProfileIds(studentProfileIds);
 
-    if (!studentProfileIds || studentProfileIds.length === 0) {
+    if (normalizedStudentProfileIds.length === 0) {
       throw new BadRequestException('At least one student must be provided.');
     }
 
@@ -408,10 +464,14 @@ export class ParentService {
     }
 
     try {
-      const result = await this.parentStudentRepository.delete({
-        parent: { id: parentId },
-        studentProfile: { id: In(studentProfileIds) },
-      });
+      const result = await this.parentStudentRepository
+        .createQueryBuilder()
+        .delete()
+        .where('parentAuthId = :parentId', { parentId })
+        .andWhere('studentProfileId IN (:...studentProfileIds)', {
+          studentProfileIds: normalizedStudentProfileIds,
+        })
+        .execute();
 
       const totalLinked = await this.parentStudentRepository.count({
         where: { parent: { id: parentId } },
@@ -460,6 +520,27 @@ export class ParentService {
         studentProfileId: link.studentProfile.id,
         studentName: link.studentProfile.student?.name,
         studentUsername: link.studentProfile.student?.username,
+        rollNo: link.studentProfile.rollNo,
+        linkedAt: link.createdAt,
+      })),
+    };
+  }
+
+  async getMyLinkedStudents(user: UserData) {
+    const links = await this.parentStudentRepository.find({
+      where: { parent: { id: user.authId } },
+      relations: ['studentProfile', 'studentProfile.student'],
+      order: { createdAt: 'ASC' },
+    });
+
+    return {
+      parentId: user.authId,
+      linkedStudents: links.map((link) => ({
+        studentProfileId: link.studentProfile.id,
+        studentId: link.studentProfile.student?.id,
+        studentName: link.studentProfile.student?.name,
+        studentUsername: link.studentProfile.student?.username,
+        rollNo: link.studentProfile.rollNo,
         linkedAt: link.createdAt,
       })),
     };

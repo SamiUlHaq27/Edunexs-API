@@ -29,6 +29,16 @@ export class FeeController {
   }
 
   @Version('1')
+  @AllowedRoles([UserRoles.STUDENT, UserRoles.PARENT])
+  @Post('student/all')
+  async listStudentFees(
+    @Body() listFiltersDto: ListFiltersDto,
+    @User() user: UserData,
+  ) {
+    return await this.feeService.listStudentFees(listFiltersDto, user);
+  }
+
+  @Version('1')
   @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Put()
   async updateFee(@Body() updateFeeDto: UpdateFeeDto, @User() user: UserData) {

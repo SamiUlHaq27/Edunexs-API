@@ -8,6 +8,7 @@ import {
   AssignmentEntity,
   GradeEntity,
   GradeTypes,
+  ParentStudentEntity,
   QuizEntity,
   SectionOfferingEntity,
   StudentProfileEntity,
@@ -30,9 +31,14 @@ export class AssessmentReportService {
     private readonly quizRepository: Repository<QuizEntity>,
     @InjectRepository(SectionOfferingEntity)
     private readonly sectionOfferingRepository: Repository<SectionOfferingEntity>,
+    @InjectRepository(ParentStudentEntity)
+    private readonly parentStudentRepository: Repository<ParentStudentEntity>,
   ) {}
 
-  private async getStudentProfileForUser(user: UserData) {
+  private async getStudentProfileForUser(
+    user: UserData,
+    requestedStudentProfileId?: number,
+  ) {
     if (user.role === 'student') {
       const profile = await this.studentProfileRepository.findOne({
         where: { student: { id: user.authId } },
@@ -47,12 +53,28 @@ export class AssessmentReportService {
     }
 
     if (user.role === 'parent') {
-      if (!user.studentProfileId) {
+      const selectedStudentProfileId =
+        requestedStudentProfileId ?? user.studentProfileId;
+
+      if (!selectedStudentProfileId) {
         throw new ForbiddenException('Parent is not linked to any student');
       }
 
+      const link = await this.parentStudentRepository.findOne({
+        where: {
+          parent: { id: user.authId },
+          studentProfile: { id: selectedStudentProfileId },
+        },
+      });
+
+      if (!link) {
+        throw new ForbiddenException(
+          'You are not allowed to access this student profile',
+        );
+      }
+
       const profile = await this.studentProfileRepository.findOne({
-        where: { id: user.studentProfileId },
+        where: { id: selectedStudentProfileId },
         relations: ['student', 'sectionOfferings', 'institution'],
       });
 
@@ -70,7 +92,10 @@ export class AssessmentReportService {
     listDto: ListStudentGradeReportDto,
     user: UserData,
   ) {
-    const studentProfile = await this.getStudentProfileForUser(user);
+    const studentProfile = await this.getStudentProfileForUser(
+      user,
+      listDto.studentProfileId,
+    );
 
     const { page, size, offeringId, assessmentType } = listDto;
     const skip = (page - 1) * size;
