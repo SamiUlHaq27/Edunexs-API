@@ -4,7 +4,13 @@ import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
 import { User } from 'src/shared/pipes';
 import { AllowedRoles } from 'src/shared/reflectors';
 import type { UserData } from 'src/shared/types';
-import { CreateFeeDto, DeleteFeeDto, UpdateFeeDto } from './dtos';
+import {
+  CreateFeeDto,
+  DeleteFeeDto,
+  UpdateFeeDto,
+  CreatePaymentIntentDto,
+  ConfirmPaymentDto,
+} from './dtos';
 import { FeeService } from './services';
 
 @Controller('fee')
@@ -50,5 +56,28 @@ export class FeeController {
   @Delete()
   async deleteFee(@Body() deleteFeeDto: DeleteFeeDto, @User() user: UserData) {
     return await this.feeService.deleteFee(deleteFeeDto, user);
+  }
+
+  @Version('1')
+  @AllowedRoles([UserRoles.STUDENT, UserRoles.PARENT])
+  @Post('payment/create-intent')
+  async createPaymentIntent(
+    @Body() createPaymentIntentDto: CreatePaymentIntentDto,
+    @User() user: UserData,
+  ) {
+    return await this.feeService.createPaymentIntent(
+      createPaymentIntentDto,
+      user,
+    );
+  }
+
+  @Version('1')
+  @AllowedRoles([UserRoles.STUDENT, UserRoles.PARENT])
+  @Post('payment/confirm')
+  async confirmPayment(
+    @Body() confirmPaymentDto: ConfirmPaymentDto,
+    @User() user: UserData,
+  ) {
+    return await this.feeService.confirmPayment(confirmPaymentDto, user);
   }
 }

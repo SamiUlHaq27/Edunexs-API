@@ -15,10 +15,16 @@ import {
 } from 'src/database/entities';
 import { UserRoles } from 'src/shared/consts';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
-import { InstitutionContextService } from 'src/shared/services';
+import { InstitutionContextService, StripeService } from 'src/shared/services';
 import { UserData } from 'src/shared/types';
 import { FindOptionsWhere, In, Like, Repository } from 'typeorm';
-import { CreateFeeDto, DeleteFeeDto, UpdateFeeDto } from '../dtos';
+import {
+  CreateFeeDto,
+  DeleteFeeDto,
+  UpdateFeeDto,
+  CreatePaymentIntentDto,
+  ConfirmPaymentDto,
+} from '../dtos';
 
 @Injectable()
 export class FeeService {
@@ -32,6 +38,7 @@ export class FeeService {
     @InjectRepository(ParentStudentEntity)
     private readonly parentStudentRepository: Repository<ParentStudentEntity>,
     private readonly institutionContextService: InstitutionContextService,
+    private readonly stripeService: StripeService,
   ) {}
 
   async createFee(createFeeDto: CreateFeeDto, user: UserData) {
@@ -547,5 +554,128 @@ export class FeeService {
       createdAt: fee.createdAt,
       updatedAt: fee.updatedAt,
     };
+  }
+
+  async createPaymentIntent(
+    createPaymentIntentDto: CreatePaymentIntentDto,
+    user: UserData,
+  ) {
+    // Get the fee record
+    const fee = await this.feeRepository.findOne({
+      where: { id: createPaymentIntentDto.feeId },
+      relations: ['studentProfile', 'institution'],
+    });
+
+    if (!fee) {
+      throw new NotFoundException('Invoice not found');
+    }
+
+    // Verify student/parent access
+    if (user.role === UserRoles.STUDENT) {
+      const studentProfile = await this.studentProfileRepository.findOne({
+        where: { student: { id: user.authId } },
+      });
+
+      if (!studentProfile || studentProfile.id !== fee.studentProfile.id) {
+        throw new NotFoundException('You do not have access to this invoice');
+      }
+    } else if (user.role === UserRoles.PARENT) {
+      const link = await this.parentStudentRepository.findOne({
+        where: {
+          parent: { id: user.authId },
+          studentProfile: { id: fee.studentProfile.id },
+        },
+      });
+
+      if (!link) {
+        throw new NotFoundException('You do not have access to this invoice');
+      }
+    }
+
+    // Check if Stripe is configured
+    if (!this.stripeService.isConfigured()) {
+      throw new InternalServerErrorException(
+        'Payment processing is not configured',
+      );
+    }
+
+    // Create payment intent
+    const paymentIntent = await this.stripeService.createPaymentIntent(
+      fee.amount,
+      createPaymentIntentDto.currency || 'pkr',
+      {
+        feeId: String(fee.id),
+        invoiceNo: fee.invoiceNo,
+        studentName: fee.studentProfile?.student?.name || 'Unknown',
+      },
+    );
+
+    return {
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      amount: fee.amount,
+      currency: createPaymentIntentDto.currency || 'pkr',
+      fee: this.buildFeeResponse(fee),
+    };
+  }
+
+  async confirmPayment(confirmPaymentDto: ConfirmPaymentDto, user: UserData) {
+    // Get the fee record
+    const fee = await this.feeRepository.findOne({
+      where: { id: confirmPaymentDto.feeId },
+      relations: ['studentProfile', 'institution'],
+    });
+
+    if (!fee) {
+      throw new NotFoundException('Invoice not found');
+    }
+
+    // Verify student/parent access
+    if (user.role === UserRoles.STUDENT) {
+      const studentProfile = await this.studentProfileRepository.findOne({
+        where: { student: { id: user.authId } },
+      });
+
+      if (!studentProfile || studentProfile.id !== fee.studentProfile.id) {
+        throw new NotFoundException('You do not have access to this invoice');
+      }
+    } else if (user.role === UserRoles.PARENT) {
+      const link = await this.parentStudentRepository.findOne({
+        where: {
+          parent: { id: user.authId },
+          studentProfile: { id: fee.studentProfile.id },
+        },
+      });
+
+      if (!link) {
+        throw new NotFoundException('You do not have access to this invoice');
+      }
+    }
+
+    // Retrieve and verify the payment intent
+    const paymentIntent = await this.stripeService.confirmPaymentIntent(
+      confirmPaymentDto.clientSecret,
+    );
+
+    if (paymentIntent.status !== 'succeeded') {
+      throw new BadRequestException(`Payment status: ${paymentIntent.status}`);
+    }
+
+    // Update fee status to PAID
+    fee.status = 'PAID';
+    fee.paidAt = new Date();
+
+    try {
+      await this.feeRepository.save(fee);
+
+      return {
+        success: true,
+        message: 'Payment processed successfully',
+        fee: this.buildFeeResponse(fee),
+        paymentIntentId: paymentIntent.id,
+      };
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to update payment status');
+    }
   }
 }

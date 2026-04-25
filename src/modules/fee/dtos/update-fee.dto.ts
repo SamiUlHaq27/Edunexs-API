@@ -20,7 +20,7 @@ export class UpdateFeeDto {
 
   @IsOptional()
   @IsInt()
-  @Min(0)
+  @Min(200)
   amount?: number;
 
   @IsOptional()

@@ -8,7 +8,7 @@ import {
   StudentGroupEntity,
   StudentProfileEntity,
 } from 'src/database/entities';
-import { InstitutionContextService } from 'src/shared/services';
+import { InstitutionContextService, StripeService } from 'src/shared/services';
 import { FeeController } from './fee.controller';
 import { FeeService } from './services';
 
@@ -24,6 +24,6 @@ import { FeeService } from './services';
     ]),
   ],
   controllers: [FeeController],
-  providers: [FeeService, InstitutionContextService],
+  providers: [FeeService, InstitutionContextService, StripeService],
 })
 export class FeeModule {}
