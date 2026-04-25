@@ -10,6 +10,7 @@ import {
   AttendanceEntity,
   AttendanceStatus,
 } from 'src/database/entities/attendance.entity';
+import { ParentStudentEntity } from 'src/database/entities/parent-student.entity';
 import { SectionOfferingEntity } from 'src/database/entities/section-offering.entity';
 import { StudentProfileEntity } from 'src/database/entities/student-profile.entity';
 import type { UserData } from 'src/shared/types';
@@ -36,6 +37,8 @@ export class AttendanceService {
     private readonly sectionOfferingRepository: Repository<SectionOfferingEntity>,
     @InjectRepository(StudentProfileEntity)
     private readonly studentProfileRepository: Repository<StudentProfileEntity>,
+    @InjectRepository(ParentStudentEntity)
+    private readonly parentStudentRepository: Repository<ParentStudentEntity>,
   ) {}
 
   async markAttendance(markAttendanceDto: MarkAttendanceDto, user: UserData) {
@@ -286,10 +289,43 @@ export class AttendanceService {
     listStudentAttendanceDto: ListStudentAttendanceDto,
     user: UserData,
   ) {
-    const studentProfile = await this.studentProfileRepository.findOne({
-      where: { student: { id: user.authId } },
-      relations: ['student'],
-    });
+    let studentProfile: StudentProfileEntity | null = null;
+
+    if (user.role === 'student') {
+      studentProfile = await this.studentProfileRepository.findOne({
+        where: { student: { id: user.authId } },
+        relations: ['student'],
+      });
+    } else if (user.role === 'parent') {
+      const selectedStudentProfileId =
+        listStudentAttendanceDto.studentProfileId ?? user.studentProfileId;
+
+      if (!selectedStudentProfileId) {
+        throw new ForbiddenException('Parent is not linked to any student');
+      }
+
+      const link = await this.parentStudentRepository.findOne({
+        where: {
+          parent: { id: user.authId },
+          studentProfile: { id: selectedStudentProfileId },
+        },
+      });
+
+      if (!link) {
+        throw new ForbiddenException(
+          'You are not allowed to access this student profile',
+        );
+      }
+
+      studentProfile = await this.studentProfileRepository.findOne({
+        where: { id: selectedStudentProfileId },
+        relations: ['student'],
+      });
+    } else {
+      throw new ForbiddenException(
+        'Only students or parents can view student attendance',
+      );
+    }
 
     if (!studentProfile) {
       throw new NotFoundException('Student profile not found');

@@ -4,10 +4,11 @@ import {
   AuthEntity,
   FeeEntity,
   InstitutionEntity,
+  ParentStudentEntity,
   StudentGroupEntity,
   StudentProfileEntity,
 } from 'src/database/entities';
-import { InstitutionContextService } from 'src/shared/services';
+import { InstitutionContextService, StripeService } from 'src/shared/services';
 import { FeeController } from './fee.controller';
 import { FeeService } from './services';
 
@@ -18,10 +19,11 @@ import { FeeService } from './services';
       FeeEntity,
       StudentProfileEntity,
       StudentGroupEntity,
+      ParentStudentEntity,
       InstitutionEntity,
     ]),
   ],
   controllers: [FeeController],
-  providers: [FeeService, InstitutionContextService],
+  providers: [FeeService, InstitutionContextService, StripeService],
 })
 export class FeeModule {}

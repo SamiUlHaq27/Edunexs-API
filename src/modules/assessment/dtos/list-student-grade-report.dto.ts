@@ -22,6 +22,11 @@ export class ListStudentGradeReportDto {
   @IsOptional()
   offeringId?: number;
 
+  @IsInt()
+  @Type(() => Number)
+  @IsOptional()
+  studentProfileId?: number;
+
   @IsIn([...StudentGradeTypes])
   @IsOptional()
   assessmentType?: (typeof StudentGradeTypes)[number];

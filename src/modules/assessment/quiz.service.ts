@@ -22,6 +22,7 @@ import {
   CreateQuizQuestionDto,
   ListQuizAttemptsDto,
   ListStudentQuizGradesDto,
+  StudentQuizDetailDto,
   ListTeacherQuizzesDto,
   SubmitQuizAttemptDto,
   UpdateQuizDto,
@@ -418,6 +419,80 @@ export class QuizService {
       attemptsRemaining: Math.max(quiz.maxAttempts - (attemptsUsed + 1), 0),
       bestScore: Number(grade?.score || score),
       message: 'Quiz attempt submitted successfully',
+    };
+  }
+
+  async getStudentQuizDetail(
+    studentQuizDetailDto: StudentQuizDetailDto,
+    user: UserData,
+  ) {
+    const studentProfile = await this.getStudentProfileForUser(user.authId);
+
+    const quiz = await this.quizRepository.findOne({
+      where: {
+        id: studentQuizDetailDto.quizId,
+        isActive: true,
+      },
+      relations: [
+        'sectionOffering',
+        'sectionOffering.section',
+        'sectionOffering.course',
+      ],
+    });
+
+    if (!quiz) {
+      throw new NotFoundException('Quiz not found');
+    }
+
+    const enrolledOfferingIds = new Set(
+      (studentProfile.sectionOfferings || []).map((offering) => offering.id),
+    );
+
+    if (!enrolledOfferingIds.has(quiz.sectionOffering.id)) {
+      throw new ForbiddenException(
+        'You are not enrolled in this quiz offering',
+      );
+    }
+
+    const attemptsUsed = await this.quizAttemptRepository.count({
+      where: {
+        quiz: { id: quiz.id },
+        studentProfile: { id: studentProfile.id },
+      },
+    });
+
+    const now = new Date();
+    const window: 'upcoming' | 'active' | 'closed' =
+      now < quiz.startsAt
+        ? 'upcoming'
+        : now > quiz.endsAt
+          ? 'closed'
+          : 'active';
+
+    const attemptsRemaining = Math.max(quiz.maxAttempts - attemptsUsed, 0);
+
+    return {
+      quizId: quiz.id,
+      title: quiz.title,
+      startsAt: quiz.startsAt,
+      endsAt: quiz.endsAt,
+      offering: {
+        id: quiz.sectionOffering?.id,
+        sectionName: quiz.sectionOffering?.section?.name,
+        courseName: quiz.sectionOffering?.course?.title,
+      },
+      totalQuestions: quiz.questions.length,
+      maxAttempts: quiz.maxAttempts,
+      attemptsUsed,
+      attemptsRemaining,
+      canAttempt: window === 'active' && attemptsRemaining > 0,
+      serverNow: now.toISOString(),
+      window,
+      questions: quiz.questions.map((question) => ({
+        id: question.id,
+        question: question.question,
+        options: question.options,
+      })),
     };
   }
 

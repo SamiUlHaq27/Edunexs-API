@@ -35,6 +35,7 @@ export class SectionOfferingController {
     UserRoles.INSTITUTION_ADMIN,
     UserRoles.INSTITUTION_OWNER,
     UserRoles.TEACHER,
+    UserRoles.STUDENT,
   ])
   @Post('all')
   async listSectionOfferings(

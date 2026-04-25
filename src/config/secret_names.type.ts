@@ -12,6 +12,8 @@ export const Secrets = [
   'APPWRITE_PROJECT_ID',
   'APPWRITE_API_KEY',
   'APPWRITE_BUCKET_ID',
+  'STRIPE_SECRET_KEY',
+  'STRIPE_PUBLIC_KEY',
 ] as const;
 
 export type SecretNames = (typeof Secrets)[number];

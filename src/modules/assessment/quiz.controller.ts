@@ -7,6 +7,7 @@ import {
   CreateQuizDto,
   ListQuizAttemptsDto,
   ListStudentQuizGradesDto,
+  StudentQuizDetailDto,
   ListTeacherQuizzesDto,
   SubmitQuizAttemptDto,
   UpdateQuizDto,
@@ -58,6 +59,16 @@ export class QuizController {
     @User() user: UserData,
   ) {
     return await this.quizService.listQuizAttempts(listQuizAttemptsDto, user);
+  }
+
+  @Version('1')
+  @AllowedRoles([UserRoles.STUDENT])
+  @Post('student/detail')
+  async getStudentQuizDetail(
+    @Body() studentQuizDetailDto: StudentQuizDetailDto,
+    @User() user: UserData,
+  ) {
+    return await this.quizService.getStudentQuizDetail(studentQuizDetailDto, user);
   }
 
   @Version('1')
