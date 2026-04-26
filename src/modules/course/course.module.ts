@@ -5,6 +5,7 @@ import {
   CourseEntity,
   FileEntity,
   InstitutionEntity,
+  OtpEntity,
   StudentGroupEntity,
   StudentProfileEntity,
 } from 'src/database/entities';
@@ -32,6 +33,7 @@ import {
       FileEntity,
       StudentProfileEntity,
       StudentGroupEntity,
+      OtpEntity,
     ]),
   ],
   controllers: [

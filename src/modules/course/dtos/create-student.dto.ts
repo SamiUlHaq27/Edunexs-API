@@ -34,4 +34,10 @@ export class CreateStudentDto {
   @IsEmail()
   @MaxLength(320)
   recoveryEmail?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(6)
+  @MaxLength(6)
+  otp?: string;
 }
