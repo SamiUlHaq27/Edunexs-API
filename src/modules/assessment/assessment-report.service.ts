@@ -8,6 +8,7 @@ import {
   AssignmentEntity,
   GradeEntity,
   GradeTypes,
+  CustomGradeEntity,
   ParentStudentEntity,
   QuizEntity,
   SectionOfferingEntity,
@@ -29,6 +30,8 @@ export class AssessmentReportService {
     private readonly assignmentRepository: Repository<AssignmentEntity>,
     @InjectRepository(QuizEntity)
     private readonly quizRepository: Repository<QuizEntity>,
+    @InjectRepository(CustomGradeEntity)
+    private readonly customGradeRepository: Repository<CustomGradeEntity>,
     @InjectRepository(SectionOfferingEntity)
     private readonly sectionOfferingRepository: Repository<SectionOfferingEntity>,
     @InjectRepository(ParentStudentEntity)
@@ -159,6 +162,7 @@ export class AssessmentReportService {
 
     const assignmentIds = new Set<number>();
     const quizIds = new Set<number>();
+    const customIds = new Set<number>();
 
     for (const grade of grades) {
       if (!grade.assessmentId) continue;
@@ -166,10 +170,12 @@ export class AssessmentReportService {
         assignmentIds.add(grade.assessmentId);
       } else if (grade.gradeType === GradeTypes.QUIZ) {
         quizIds.add(grade.assessmentId);
+      } else if (grade.gradeType === GradeTypes.CUSTOM) {
+        customIds.add(grade.assessmentId);
       }
     }
 
-    const [assignments, quizzes] = await Promise.all([
+    const [assignments, quizzes, customGrades] = await Promise.all([
       assignmentIds.size
         ? this.assignmentRepository.find({
             where: { id: In(Array.from(assignmentIds)) },
@@ -190,6 +196,16 @@ export class AssessmentReportService {
             ],
           })
         : Promise.resolve([]),
+      customIds.size
+        ? this.customGradeRepository.find({
+            where: { id: In(Array.from(customIds)) },
+            relations: [
+              'sectionOffering',
+              'sectionOffering.course',
+              'sectionOffering.section',
+            ],
+          })
+        : Promise.resolve([]),
     ]);
 
     const assignmentById = new Map<number, AssignmentEntity>();
@@ -200,6 +216,11 @@ export class AssessmentReportService {
     const quizById = new Map<number, QuizEntity>();
     for (const q of quizzes) {
       quizById.set(q.id, q);
+    }
+
+    const customById = new Map<number, CustomGradeEntity>();
+    for (const customGrade of customGrades) {
+      customById.set(customGrade.id, customGrade);
     }
 
     const items: Array<{
@@ -254,8 +275,9 @@ export class AssessmentReportService {
           courseName = quiz.sectionOffering?.course?.title ?? null;
         }
       } else if (grade.gradeType === GradeTypes.CUSTOM) {
-        title = 'Custom Grade';
-        maxGrade = 100;
+        const customGrade = customById.get(grade.assessmentId ?? -1);
+        title = customGrade?.title ?? 'Custom Grade';
+        maxGrade = customGrade ? Number(customGrade.maxGrade) : null;
       }
 
       if (!sectionName || !courseName) {
