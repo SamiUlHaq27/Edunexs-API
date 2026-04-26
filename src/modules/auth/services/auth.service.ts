@@ -328,6 +328,13 @@ export class AuthService {
       throw new UnauthorizedException('Account is inactive');
     }
 
+    // Check if institution is unblocked
+    if (user?.institution?.isBlocked && user?.role != UserRoles.ADMIN) {
+      throw new UnauthorizedException(
+        'Your institution is blocked please contact support!',
+      );
+    }
+
     // Verify password
     const hashedPassword = hashPassword(password);
     if (user?.password !== hashedPassword) {

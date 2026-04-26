@@ -10,9 +10,10 @@ import {
   AuthEntity,
   FileEntity,
   InstitutionEntity,
+  OtpEntity,
   StudentProfileEntity,
 } from 'src/database/entities';
-import { UserRoles } from 'src/shared/consts';
+import { OtpStatuses, OtpTypes, UserRoles } from 'src/shared/consts';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
 import { hashPassword } from 'src/shared/helpers';
 import {
@@ -34,6 +35,8 @@ export class StudentService {
     private readonly fileRepository: Repository<FileEntity>,
     @InjectRepository(StudentProfileEntity)
     private readonly studentProfileRepository: Repository<StudentProfileEntity>,
+    @InjectRepository(OtpEntity)
+    private readonly otpRepository: Repository<OtpEntity>,
     private readonly institutionContextService: InstitutionContextService,
     private readonly appwriteStorageService: AppwriteStorageService,
   ) {}
@@ -43,9 +46,40 @@ export class StudentService {
     user: UserData,
     profilePicture?: Express.Multer.File,
   ) {
-    const { name, password, rollNo, grade, recoveryEmail } = createStudentDto;
+    const { name, password, rollNo, grade, recoveryEmail, otp } =
+      createStudentDto;
     const managerInstitution =
       await this.institutionContextService.getManagerInstitution(user);
+
+    // If recovery email is provided, verify OTP.
+    if (recoveryEmail && otp) {
+      const otpRecord = await this.otpRepository.findOne({
+        where: {
+          email: recoveryEmail,
+          otp,
+          type: OtpTypes.EMAIL_VERIFICATION,
+          status: OtpStatuses.PENDING,
+        },
+        order: { createdAt: 'DESC' },
+      });
+
+      if (!otpRecord) {
+        throw new BadRequestException('Invalid or expired OTP');
+      }
+
+      if (otpRecord?.expiresAt && new Date() > otpRecord.expiresAt) {
+        otpRecord.status = OtpStatuses.EXPIRED;
+        await this.otpRepository.save(otpRecord);
+        throw new BadRequestException('OTP has expired');
+      }
+
+      otpRecord.status = OtpStatuses.VERIFIED;
+      await this.otpRepository.save(otpRecord);
+    } else if (recoveryEmail && !otp) {
+      throw new BadRequestException(
+        'OTP is required when recovery email is provided',
+      );
+    }
 
     await this.ensureUniqueEmail(recoveryEmail);
 
