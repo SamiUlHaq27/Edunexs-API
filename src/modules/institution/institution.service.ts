@@ -9,7 +9,11 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, FindOptionsWhere } from 'typeorm';
-import { InstitutionEntity, FileEntity } from 'src/database/entities';
+import {
+  InstitutionEntity,
+  FileEntity,
+  AuthEntity,
+} from 'src/database/entities';
 import {
   CreateInstitutionDto,
   UpdateInstitutionDto,
@@ -21,6 +25,7 @@ import { AppwriteStorageService } from 'src/shared/services/appwrite-storage.ser
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as Handlebars from 'handlebars';
+import type { UserData } from 'src/shared/types/request.type';
 
 @Injectable()
 export class InstitutionService {
@@ -31,18 +36,17 @@ export class InstitutionService {
     private readonly institutionRepository: Repository<InstitutionEntity>,
     @InjectRepository(FileEntity)
     private readonly fileRepository: Repository<FileEntity>,
+    @InjectRepository(AuthEntity)
+    private readonly authRepository: Repository<AuthEntity>,
     private readonly brevoService: BrevoService,
     private readonly appwriteStorageService: AppwriteStorageService,
   ) {}
 
-  async create(createInstitutionDto: CreateInstitutionDto, authId: number) {
+  async create(createInstitutionDto: CreateInstitutionDto, user: UserData) {
     const { prefix, name, city, country, address } = createInstitutionDto;
 
     // Check if owner already has an institution
-    const ownerInstitution = await this.institutionRepository.findOne({
-      where: { owner: { id: authId } },
-      relations: ['owner'],
-    });
+    const ownerInstitution = await this.findInstitutionForOwner(user);
 
     if (ownerInstitution) {
       throw new ForbiddenException(
@@ -68,12 +72,19 @@ export class InstitutionService {
       city,
       country,
       address,
-      owner: { id: authId },
+      owner: { id: user.authId },
     });
 
     try {
       const savedInstitution =
         await this.institutionRepository.save(newInstitution);
+
+      // Link the institution back to the owner's auth record
+      // This ensures user.institution is populated when they log in
+      await this.authRepository.update(
+        { id: user.authId },
+        { institution: savedInstitution },
+      );
 
       return {
         prefix: savedInstitution?.prefix,
@@ -86,12 +97,6 @@ export class InstitutionService {
     } catch {
       throw new InternalServerErrorException('Failed to create institution');
     }
-  }
-
-  async findAll() {
-    return await this.institutionRepository.find({
-      order: { createdAt: 'DESC' },
-    });
   }
 
   async findAllForAdmin(listFiltersDto: ListFiltersDto) {
@@ -165,11 +170,11 @@ export class InstitutionService {
     };
   }
 
-  async findByOwnerId(authId: number) {
-    const institution = await this.institutionRepository.findOne({
-      where: { owner: { id: authId } },
-      relations: ['owner', 'logoFile'],
-    });
+  async findByOwner(user: UserData) {
+    const institution = await this.findInstitutionForOwner(user, [
+      'owner',
+      'logoFile',
+    ]);
 
     if (!institution) {
       throw new NotFoundException('Institution not found');
@@ -200,14 +205,12 @@ export class InstitutionService {
       logoFile,
       isBlocked: institution.isBlocked,
       createdAt: institution.createdAt,
-      updatedAt: institution.upodatedAt,
+      updatedAt: institution.updatedAt,
     };
   }
 
-  async update(authId: number, updateInstitutionDto: UpdateInstitutionDto) {
-    const institution = await this.institutionRepository.findOne({
-      where: { owner: { id: authId } },
-    });
+  async update(user: UserData, updateInstitutionDto: UpdateInstitutionDto) {
+    const institution = await this.findInstitutionForOwner(user);
 
     if (!institution) {
       throw new NotFoundException('Institution not found');
@@ -320,12 +323,9 @@ export class InstitutionService {
     }
   }
 
-  async uploadLogo(authId: number, logoFile: Express.Multer.File) {
-    // Find institution by owner ID
-    const institution = await this.institutionRepository.findOne({
-      where: { owner: { id: authId } },
-      relations: ['logoFile'],
-    });
+  async uploadLogo(user: UserData, logoFile: Express.Multer.File) {
+    // Find institution by token institutionId first, then owner fallback
+    const institution = await this.findInstitutionForOwner(user, ['logoFile']);
 
     if (!institution) {
       throw new NotFoundException(
@@ -339,12 +339,10 @@ export class InstitutionService {
     }
 
     try {
-      const fileName = `${institution.prefix}-logo-${Date.now()}-${logoFile.originalname}`;
-
       // Upload to Appwrite
       const uploadResult = await this.appwriteStorageService.uploadFile({
         file: logoFile.buffer,
-        fileName: fileName,
+        fileName: logoFile.originalname,
         mimeType: logoFile.mimetype,
       });
 
@@ -391,5 +389,76 @@ export class InstitutionService {
       }
       throw new InternalServerErrorException('Failed to upload logo');
     }
+  }
+
+  private async findInstitutionForOwner(
+    user: UserData,
+    relations: string[] = [],
+  ) {
+    if (user.institutionId) {
+      const byToken = await this.institutionRepository.findOne({
+        where: {
+          prefix: user.institutionId,
+          owner: { id: user.authId },
+        },
+        relations,
+      });
+
+      if (byToken) {
+        return byToken;
+      }
+    }
+
+    return await this.institutionRepository.findOne({
+      where: { owner: { id: user.authId } },
+      relations,
+    });
+  }
+
+  /**
+   * Get institution by prefix (institutionId) from JWT token
+   * Works for any role: INSTITUTION_OWNER, INSTITUTION_ADMIN, etc.
+   */
+  async findMyInstitution(user: UserData) {
+    if (!user.institutionId) {
+      throw new NotFoundException('Institution not found in token');
+    }
+
+    const institution = await this.institutionRepository.findOne({
+      where: { prefix: user.institutionId },
+      relations: ['owner', 'logoFile'],
+    });
+
+    if (!institution) {
+      throw new NotFoundException('Institution not found');
+    }
+
+    // Format response with logo file data if available
+    const logoFile = institution.logoFile
+      ? {
+          dbFileId: institution.logoFile.id,
+          appwriteFileId: institution.logoFile.fileId,
+          fileName: institution.logoFile.fileName,
+          mimeType: institution.logoFile.mimeType,
+          sizeOriginal: institution.logoFile.sizeOriginal,
+          publicUrl: this.appwriteStorageService.getFileViewUrl({
+            fileId: institution.logoFile.fileId,
+          }),
+        }
+      : null;
+
+    return {
+      prefix: institution.prefix,
+      name: institution.name,
+      city: institution.city,
+      country: institution.country,
+      address: institution.address,
+      logoUrl: logoFile?.publicUrl,
+      logo: logoFile,
+      logoFile,
+      isBlocked: institution.isBlocked,
+      createdAt: institution.createdAt,
+      updatedAt: institution.updatedAt,
+    };
   }
 }

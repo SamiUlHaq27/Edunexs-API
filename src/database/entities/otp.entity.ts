@@ -1,3 +1,5 @@
+import { OtpStatuses } from 'src/shared/consts/otp.const';
+import type { OtpStatusesType, OtpTypesType } from 'src/shared/types/otp.type';
 import {
   Entity,
   Column,
@@ -5,18 +7,6 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
-
-export enum OtpStatusEnum {
-  PENDING = 'pending',
-  VERIFIED = 'verified',
-  EXPIRED = 'expired',
-}
-
-export enum OtpTypeEnum {
-  SIGNUP = 'signup',
-  PASSWORD_RESET = 'password_reset',
-  EMAIL_VERIFICATION = 'email_verification',
-}
 
 @Entity('tbl_otp')
 export class OtpEntity {
@@ -30,17 +20,15 @@ export class OtpEntity {
   otp: string;
 
   @Column({
-    type: 'enum',
-    enum: OtpStatusEnum,
-    default: OtpStatusEnum.PENDING,
+    type: 'character varying',
+    default: OtpStatuses.PENDING,
   })
-  status: OtpStatusEnum;
+  status: OtpStatusesType;
 
   @Column({
-    type: 'enum',
-    enum: OtpTypeEnum,
+    type: 'character varying',
   })
-  type: OtpTypeEnum;
+  type: OtpTypesType;
 
   @Column({ type: 'timestamp' })
   expiresAt: Date;
