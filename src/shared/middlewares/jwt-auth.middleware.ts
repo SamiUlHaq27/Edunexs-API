@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NestMiddleware,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -9,6 +10,8 @@ import { AppRequest, UserData } from '../types';
 
 @Injectable()
 export class JwtAuthMiddleware implements NestMiddleware {
+  private readonly logger = new Logger(this.constructor.name);
+
   constructor(private readonly jwtService: JwtService) {}
 
   use(req: AppRequest, res: Response, next: NextFunction) {
@@ -21,6 +24,9 @@ export class JwtAuthMiddleware implements NestMiddleware {
     try {
       const payload = this.jwtService.verify<UserData>(token);
       req.user = payload;
+      this.logger.debug(
+        `${req?.method} ${JSON.stringify(req?.user)} ${JSON.stringify(req?.body)}`,
+      );
       next();
     } catch {
       throw new UnauthorizedException('Invalid token');

@@ -30,7 +30,7 @@ export class SectionService {
     const existingSection = await this.sectionRepository.findOne({
       where: {
         name: normalizedName,
-        institution: { prefix: managerInstitution.prefix },
+        institution: { id: managerInstitution.id },
       },
       relations: ['institution'],
     });
@@ -44,7 +44,7 @@ export class SectionService {
     const newSection = this.sectionRepository.create({
       name: normalizedName,
       isActive: true,
-      institution: { prefix: managerInstitution.prefix },
+      institution: { id: managerInstitution.id },
     });
 
     try {
@@ -62,7 +62,7 @@ export class SectionService {
     const skip = (page - 1) * size;
 
     const where: FindOptionsWhere<SectionEntity> = {
-      institution: { prefix: managerInstitution.prefix },
+      institution: { id: managerInstitution.id },
     };
 
     if (filters && typeof filters === 'object') {
@@ -109,7 +109,7 @@ export class SectionService {
     const sectionEntity = await this.sectionRepository.findOne({
       where: {
         id: sectionId,
-        institution: { prefix: managerInstitution.prefix },
+        institution: { id: managerInstitution.id },
       },
       relations: ['institution', 'offerings'],
     });
@@ -124,7 +124,7 @@ export class SectionService {
       const existingSection = await this.sectionRepository.findOne({
         where: {
           name: normalizedName,
-          institution: { prefix: managerInstitution.prefix },
+          institution: { id: managerInstitution.id },
         },
         relations: ['institution'],
       });
@@ -157,7 +157,7 @@ export class SectionService {
     const sectionEntity = await this.sectionRepository.findOne({
       where: {
         id: deleteSectionDto.sectionId,
-        institution: { prefix: managerInstitution.prefix },
+        institution: { id: managerInstitution.id },
       },
       relations: ['institution'],
     });

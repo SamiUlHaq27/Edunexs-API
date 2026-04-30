@@ -87,6 +87,7 @@ export class InstitutionService {
       );
 
       return {
+        id: savedInstitution?.id,
         prefix: savedInstitution?.prefix,
         name: savedInstitution?.name,
         city: savedInstitution?.city,
@@ -195,6 +196,7 @@ export class InstitutionService {
       : null;
 
     return {
+      id: institution.id,
       prefix: institution.prefix,
       name: institution.name,
       city: institution.city,
@@ -238,10 +240,10 @@ export class InstitutionService {
   }
 
   async updateStatus(updateStatusDto: UpdateInstitutionStatusDto) {
-    const { prefix, isBlocked, message } = updateStatusDto;
+    const { institutionId, isBlocked, message } = updateStatusDto;
 
     const institution = await this.institutionRepository.findOne({
-      where: { prefix },
+      where: { id: Number(institutionId) },
       relations: ['owner'],
     });
 
@@ -309,6 +311,7 @@ export class InstitutionService {
       }
 
       return {
+        id: updatedInstitution?.id,
         prefix: updatedInstitution?.prefix,
         name: updatedInstitution?.name,
         isBlocked: updatedInstitution?.isBlocked,
@@ -398,7 +401,7 @@ export class InstitutionService {
     if (user.institutionId) {
       const byToken = await this.institutionRepository.findOne({
         where: {
-          prefix: user.institutionId,
+          id: user.institutionId,
           owner: { id: user.authId },
         },
         relations,
@@ -416,7 +419,7 @@ export class InstitutionService {
   }
 
   /**
-   * Get institution by prefix (institutionId) from JWT token
+   * Get institution by id from JWT token
    * Works for any role: INSTITUTION_OWNER, INSTITUTION_ADMIN, etc.
    */
   async findMyInstitution(user: UserData) {
@@ -425,7 +428,7 @@ export class InstitutionService {
     }
 
     const institution = await this.institutionRepository.findOne({
-      where: { prefix: user.institutionId },
+      where: { id: user.institutionId },
       relations: ['owner', 'logoFile'],
     });
 
@@ -448,6 +451,7 @@ export class InstitutionService {
       : null;
 
     return {
+      id: institution.id,
       prefix: institution.prefix,
       name: institution.name,
       city: institution.city,

@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class UpdateInstitutionDto {
@@ -5,6 +6,7 @@ export class UpdateInstitutionDto {
   @IsString()
   @MinLength(2)
   @MaxLength(10)
+  @Transform(({ value }) => `${value}`?.toUpperCase())
   prefix?: string;
 
   @IsOptional()

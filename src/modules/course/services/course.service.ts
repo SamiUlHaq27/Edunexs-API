@@ -29,7 +29,7 @@ export class CourseService {
     const existingCourse = await this.courseRepository.findOne({
       where: {
         code,
-        institution: { prefix: managerInstitution.prefix },
+        institution: { id: managerInstitution.id },
       },
       relations: ['institution'],
     });
@@ -44,7 +44,7 @@ export class CourseService {
       code,
       title,
       description,
-      institution: { prefix: managerInstitution.prefix },
+      institution: { id: managerInstitution.id },
       isActive: true,
     });
 
@@ -71,7 +71,7 @@ export class CourseService {
     const skip = (page - 1) * size;
 
     const where: FindOptionsWhere<CourseEntity> = {
-      institution: { prefix: managerInstitution.prefix },
+      institution: { id: managerInstitution.id },
     };
 
     if (filters && typeof filters === 'object') {
@@ -125,7 +125,7 @@ export class CourseService {
       throw new NotFoundException('Course not found');
     }
 
-    if (course.institution.prefix !== managerInstitution.prefix) {
+    if (course.institution.id !== managerInstitution.id) {
       throw new ForbiddenException(
         'You are not allowed to update courses outside your institution',
       );
@@ -135,7 +135,7 @@ export class CourseService {
       const existingCourse = await this.courseRepository.findOne({
         where: {
           code,
-          institution: { prefix: managerInstitution.prefix },
+          institution: { id: managerInstitution.id },
         },
         relations: ['institution'],
       });
@@ -182,7 +182,7 @@ export class CourseService {
       throw new NotFoundException('Course not found');
     }
 
-    if (course.institution.prefix !== managerInstitution.prefix) {
+    if (course.institution.id !== managerInstitution.id) {
       throw new ForbiddenException(
         'You are not allowed to delete courses outside your institution',
       );

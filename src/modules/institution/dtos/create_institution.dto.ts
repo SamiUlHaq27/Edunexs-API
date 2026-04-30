@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class CreateInstitutionDto {
@@ -5,6 +6,7 @@ export class CreateInstitutionDto {
   @IsString()
   @MinLength(2)
   @MaxLength(10)
+  @Transform(({ value }) => `${value}`?.toUpperCase())
   prefix: string;
 
   @IsNotEmpty()

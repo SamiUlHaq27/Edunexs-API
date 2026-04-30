@@ -28,7 +28,7 @@ export class SectionEntity {
   isActive: boolean;
 
   @ManyToOne(() => InstitutionEntity, { nullable: false })
-  @JoinColumn({ name: 'institutionPrefix', referencedColumnName: 'prefix' })
+  @JoinColumn({ name: 'institutionId' })
   institution: InstitutionEntity;
 
   @OneToMany(() => SectionOfferingEntity, (offering) => offering.section)

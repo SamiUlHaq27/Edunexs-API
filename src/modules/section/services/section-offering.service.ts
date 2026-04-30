@@ -122,7 +122,7 @@ export class SectionOfferingService {
   }
 
   async listSectionOfferings(listFiltersDto: ListFiltersDto, user: UserData) {
-    let institutionPrefix: string;
+    let institutionPrefix: number;
     const isTeacher = user.role === UserRoles.TEACHER;
     const isStudent = user.role === UserRoles.STUDENT;
 
@@ -136,13 +136,13 @@ export class SectionOfferingService {
         throw new NotFoundException('Teacher account not found');
       }
 
-      if (!teacherAuth.institution?.prefix) {
+      if (!teacherAuth.institution?.id) {
         throw new ForbiddenException(
           'Teacher account is not linked to an institution',
         );
       }
 
-      institutionPrefix = teacherAuth.institution.prefix;
+      institutionPrefix = teacherAuth.institution.id;
     } else if (isStudent) {
       const studentProfile = await this.studentProfileRepository.findOne({
         where: {
@@ -155,24 +155,24 @@ export class SectionOfferingService {
         throw new NotFoundException('Student profile not found');
       }
 
-      if (!studentProfile.institution?.prefix) {
+      if (!studentProfile.institution?.id) {
         throw new ForbiddenException(
           'Student profile is not linked to an institution',
         );
       }
 
-      institutionPrefix = studentProfile.institution.prefix;
+      institutionPrefix = studentProfile.institution.id;
     } else {
       const managerInstitution =
         await this.institutionContextService.getManagerInstitution(user);
-      institutionPrefix = managerInstitution.prefix;
+      institutionPrefix = managerInstitution.id;
     }
 
     const { page, size, filters } = listFiltersDto;
     const skip = (page - 1) * size;
 
     const where: Record<string, unknown> = {
-      section: { institution: { prefix: institutionPrefix } },
+      section: { institution: { id: institutionPrefix } },
     };
 
     if (isTeacher) {
@@ -263,7 +263,7 @@ export class SectionOfferingService {
     const offering = await this.sectionOfferingRepository.findOne({
       where: {
         id: updateSectionOfferingDto.offeringId,
-        section: { institution: { prefix: managerInstitution.prefix } },
+        section: { institution: { id: managerInstitution.id } },
       },
       relations: [
         'section',
@@ -285,7 +285,7 @@ export class SectionOfferingService {
     ) {
       const nextCourse = await this.getCourseInInstitution(
         updateSectionOfferingDto.courseId,
-        managerInstitution.prefix,
+        managerInstitution.id,
       );
 
       const existingOffering = await this.sectionOfferingRepository.findOne({
@@ -311,7 +311,7 @@ export class SectionOfferingService {
     ) {
       const nextTeacher = await this.getTeacherInInstitution(
         updateSectionOfferingDto.teacherId,
-        managerInstitution.prefix,
+        managerInstitution.id,
       );
       offering.teacher = { id: nextTeacher.id } as AuthEntity;
     }
@@ -325,7 +325,7 @@ export class SectionOfferingService {
       updateSectionOfferingDto.studentGroupIds !== undefined
     ) {
       const nextStudents = await this.getResolvedStudentProfiles(
-        managerInstitution.prefix,
+        managerInstitution.id,
         updateSectionOfferingDto.studentProfileIds,
         updateSectionOfferingDto.studentGroupIds,
       );
@@ -374,7 +374,7 @@ export class SectionOfferingService {
     const offering = await this.sectionOfferingRepository.findOne({
       where: {
         id: deleteSectionOfferingDto.offeringId,
-        section: { institution: { prefix: managerInstitution.prefix } },
+        section: { institution: { id: managerInstitution.id } },
       },
       relations: ['section', 'section.institution', 'students'],
     });
@@ -409,10 +409,10 @@ export class SectionOfferingService {
 
   private async getSectionInInstitution(
     sectionId: number,
-    institutionPrefix: string,
+    institutionId: number,
   ) {
     const sectionEntity = await this.sectionRepository.findOne({
-      where: { id: sectionId, institution: { prefix: institutionPrefix } },
+      where: { id: sectionId, institution: { id: institutionId } },
       relations: ['institution'],
     });
 
@@ -425,10 +425,10 @@ export class SectionOfferingService {
 
   private async getCourseInInstitution(
     courseId: number,
-    institutionPrefix: string,
+    institutionId: number,
   ) {
     const course = await this.courseRepository.findOne({
-      where: { id: courseId, institution: { prefix: institutionPrefix } },
+      where: { id: courseId, institution: { id: institutionId } },
       relations: ['institution'],
     });
 
@@ -441,13 +441,13 @@ export class SectionOfferingService {
 
   private async getTeacherInInstitution(
     teacherId: number,
-    institutionPrefix: string,
+    institutionId: number,
   ) {
     const teacher = await this.authRepository.findOne({
       where: {
         id: teacherId,
         role: UserRoles.TEACHER,
-        institution: { prefix: institutionPrefix },
+        institution: { id: institutionId },
       },
     });
 
@@ -461,7 +461,7 @@ export class SectionOfferingService {
   }
 
   private async getResolvedStudentProfiles(
-    institutionPrefix: string,
+    institutionId: number,
     studentProfileIds?: number[],
     studentGroupIds?: number[],
   ) {
@@ -479,7 +479,7 @@ export class SectionOfferingService {
       const groups = await this.studentGroupRepository.find({
         where: {
           id: In(uniqueGroupIds),
-          institution: { prefix: institutionPrefix },
+          institution: { id: institutionId },
         },
         relations: ['students', 'students.student', 'institution'],
       });
@@ -505,7 +505,7 @@ export class SectionOfferingService {
     const studentProfiles = await this.studentProfileRepository.find({
       where: {
         id: In(uniqueProfileIds),
-        institution: { prefix: institutionPrefix },
+        institution: { id: institutionId },
       },
       relations: ['student', 'institution'],
     });
