@@ -155,8 +155,6 @@ export class InstitutionAdminService {
       // If the existing record was soft-deleted, attempt to restore and update it instead
       if (existingUser.deletedAt) {
         try {
-          await this.authRepository.restore(existingUser.id);
-
           existingUser.password = hashedPassword;
           if (email) existingUser.email = email;
           existingUser.name = name;
@@ -168,7 +166,8 @@ export class InstitutionAdminService {
             } as FileEntity;
           }
 
-          const restored = await this.authRepository.save(existingUser);
+          const restored = await this.authRepository.recover(existingUser);
+          await this.authRepository.save(existingUser);
 
           return {
             id: restored.id,
