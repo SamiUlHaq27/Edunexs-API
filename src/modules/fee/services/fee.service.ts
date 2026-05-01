@@ -46,7 +46,7 @@ export class FeeService {
       await this.institutionContextService.getManagerInstitution(user);
 
     const studentProfiles = await this.getResolvedStudentProfiles(
-      managerInstitution.prefix,
+      managerInstitution.id,
       createFeeDto.studentProfileIds,
       createFeeDto.studentGroupIds,
     );
@@ -79,7 +79,7 @@ export class FeeService {
               paidAt,
               status,
               studentProfile: { id: studentProfile.id },
-              institution: { prefix: managerInstitution.prefix },
+              institution: { id: managerInstitution.id },
             }),
           );
 
@@ -111,7 +111,7 @@ export class FeeService {
     const skip = (page - 1) * size;
 
     const where = this.buildListWhere(
-      managerInstitution.prefix,
+      managerInstitution.id,
       filters as Record<string, unknown>,
     );
 
@@ -191,7 +191,7 @@ export class FeeService {
       typeof filters.search === 'string' ? filters.search.trim() : '';
 
     const baseWhere: FindOptionsWhere<FeeEntity> = {
-      institution: { prefix: studentProfile.institution?.prefix },
+      institution: { id: studentProfile.institution?.id },
       studentProfile: { id: studentProfile.id },
     };
 
@@ -238,7 +238,7 @@ export class FeeService {
     const fee = await this.feeRepository.findOne({
       where: {
         id: updateFeeDto.feeId,
-        institution: { prefix: managerInstitution.prefix },
+        institution: { id: managerInstitution.id },
       },
       relations: ['studentProfile', 'studentProfile.student', 'institution'],
     });
@@ -266,7 +266,7 @@ export class FeeService {
     if (updateFeeDto.studentProfileId !== undefined) {
       const studentProfile = await this.getValidatedStudentProfile(
         updateFeeDto.studentProfileId,
-        managerInstitution.prefix,
+        managerInstitution.id,
       );
 
       fee.studentProfile = studentProfile;
@@ -323,7 +323,7 @@ export class FeeService {
     const fee = await this.feeRepository.findOne({
       where: {
         id: deleteFeeDto.feeId,
-        institution: { prefix: managerInstitution.prefix },
+        institution: { id: managerInstitution.id },
       },
       relations: ['institution'],
     });
@@ -345,11 +345,11 @@ export class FeeService {
   }
 
   private buildListWhere(
-    institutionPrefix: string,
+    institutionId: number,
     filters: Record<string, unknown>,
   ): FindOptionsWhere<FeeEntity>[] | FindOptionsWhere<FeeEntity> {
     const baseWhere: FindOptionsWhere<FeeEntity> = {
-      institution: { prefix: institutionPrefix },
+      institution: { id: institutionId },
     };
 
     if (!filters || typeof filters !== 'object') {
@@ -405,7 +405,7 @@ export class FeeService {
   }
 
   private async getResolvedStudentProfiles(
-    institutionPrefix: string,
+    institutionId: number,
     studentProfileIds?: number[],
     studentGroupIds?: number[],
   ) {
@@ -423,7 +423,7 @@ export class FeeService {
       const groups = await this.studentGroupRepository.find({
         where: {
           id: In(uniqueGroupIds),
-          institution: { prefix: institutionPrefix },
+          institution: { id: institutionId },
         },
         relations: ['students', 'students.student', 'institution'],
       });
@@ -449,7 +449,7 @@ export class FeeService {
     const studentProfiles = await this.studentProfileRepository.find({
       where: {
         id: In(uniqueProfileIds),
-        institution: { prefix: institutionPrefix },
+        institution: { id: institutionId },
       },
       relations: ['student', 'institution'],
     });
@@ -473,12 +473,12 @@ export class FeeService {
 
   private async getValidatedStudentProfile(
     studentProfileId: number,
-    institutionPrefix: string,
+    institutionId: number,
   ) {
     const studentProfile = await this.studentProfileRepository.findOne({
       where: {
         id: studentProfileId,
-        institution: { prefix: institutionPrefix },
+        institution: { id: institutionId },
       },
       relations: ['student', 'institution'],
     });

@@ -39,7 +39,7 @@ export class StudentGroupService {
     const existingGroup = await this.studentGroupRepository.findOne({
       where: {
         name: normalizedName,
-        institution: { prefix: managerInstitution.prefix },
+        institution: { id: managerInstitution.id },
       },
       relations: ['institution'],
     });
@@ -51,14 +51,14 @@ export class StudentGroupService {
     }
 
     const studentProfiles = await this.getValidatedStudentProfiles(
-      managerInstitution.prefix,
+      managerInstitution.id,
       createStudentGroupDto?.studentProfileIds,
     );
 
     const newGroup = this.studentGroupRepository.create({
       name: normalizedName,
       isActive: true,
-      institution: { prefix: managerInstitution.prefix },
+      institution: { id: managerInstitution.id },
       students: studentProfiles,
     });
 
@@ -78,7 +78,7 @@ export class StudentGroupService {
     const skip = (page - 1) * size;
 
     const where: FindOptionsWhere<StudentGroupEntity> = {
-      institution: { prefix: managerInstitution.prefix },
+      institution: { id: managerInstitution.id },
     };
 
     if (filters && typeof filters === 'object') {
@@ -127,7 +127,7 @@ export class StudentGroupService {
     const studentGroup = await this.studentGroupRepository.findOne({
       where: {
         id: groupId,
-        institution: { prefix: managerInstitution.prefix },
+        institution: { id: managerInstitution.id },
       },
       relations: ['institution', 'students', 'students.student'],
     });
@@ -141,7 +141,7 @@ export class StudentGroupService {
       const existingGroup = await this.studentGroupRepository.findOne({
         where: {
           name: normalizedName,
-          institution: { prefix: managerInstitution.prefix },
+          institution: { id: managerInstitution.id },
         },
         relations: ['institution'],
       });
@@ -162,7 +162,7 @@ export class StudentGroupService {
     let nextStudents = studentGroup.students;
     if (studentProfileIds !== undefined) {
       nextStudents = await this.getValidatedStudentProfiles(
-        managerInstitution.prefix,
+        managerInstitution.id,
         studentProfileIds,
       );
       studentGroup.students = nextStudents;
@@ -187,7 +187,7 @@ export class StudentGroupService {
     const studentGroup = await this.studentGroupRepository.findOne({
       where: {
         id: deleteStudentGroupDto.groupId,
-        institution: { prefix: managerInstitution.prefix },
+        institution: { id: managerInstitution.id },
       },
       relations: ['institution', 'students'],
     });
@@ -215,7 +215,7 @@ export class StudentGroupService {
   }
 
   private async getValidatedStudentProfiles(
-    institutionPrefix: string,
+    institutionId: number,
     studentProfileIds: number[],
   ) {
     if (!studentProfileIds?.length) {
@@ -227,7 +227,7 @@ export class StudentGroupService {
     const studentProfiles = await this.studentProfileRepository.find({
       where: {
         id: In(uniqueStudentProfileIds),
-        institution: { prefix: institutionPrefix },
+        institution: { id: institutionId },
       },
       relations: ['student', 'institution'],
     });

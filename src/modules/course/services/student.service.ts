@@ -117,7 +117,7 @@ export class StudentService {
     const existingStudentProfile = await this.studentProfileRepository.findOne({
       where: {
         rollNo: normalizedRollNo,
-        institution: { prefix: managerInstitution.prefix },
+        institution: { id: managerInstitution.id },
       },
       relations: ['institution'],
     });
@@ -137,7 +137,7 @@ export class StudentService {
 
           const newStudent = studentAuthRepository.create({
             username: normalizedRollNo,
-            institution: { prefix: managerInstitution.prefix },
+            institution: { id: managerInstitution.id },
             password: hashPassword(password),
             name,
             role: UserRoles.STUDENT,
@@ -157,7 +157,7 @@ export class StudentService {
             grade: grade.trim(),
             student: { id: savedStudent.id } as AuthEntity,
             institution: {
-              prefix: managerInstitution.prefix,
+              id: managerInstitution.id,
             } as InstitutionEntity,
           });
 
@@ -214,8 +214,8 @@ export class StudentService {
       .createQueryBuilder('studentProfile')
       .leftJoinAndSelect('studentProfile.student', 'student')
       .leftJoinAndSelect('student.profilePictureFile', 'profilePictureFile')
-      .where('studentProfile.institutionPrefix = :institutionPrefix', {
-        institutionPrefix: managerInstitution.prefix,
+      .where('studentProfile.institutionId = :institutionId', {
+        institutionId: managerInstitution.id,
       })
       .andWhere('student.role = :role', { role: UserRoles.STUDENT });
 
@@ -320,7 +320,7 @@ export class StudentService {
     const studentProfile = await this.studentProfileRepository.findOne({
       where: {
         student: { id: studentId },
-        institution: { prefix: managerInstitution.prefix },
+        institution: { id: managerInstitution.id },
       },
       relations: ['student', 'student.profilePictureFile', 'institution'],
     });
@@ -343,7 +343,7 @@ export class StudentService {
         await this.studentProfileRepository.findOne({
           where: {
             rollNo: normalizedRollNo,
-            institution: { prefix: managerInstitution.prefix },
+            institution: { id: managerInstitution.id },
           },
           relations: ['institution'],
         });
@@ -445,7 +445,7 @@ export class StudentService {
     const studentProfile = await this.studentProfileRepository.findOne({
       where: {
         student: { id: deleteStudentDto.studentId },
-        institution: { prefix: managerInstitution.prefix },
+        institution: { id: managerInstitution.id },
       },
       relations: ['student', 'institution'],
     });

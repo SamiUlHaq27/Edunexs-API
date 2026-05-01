@@ -30,7 +30,7 @@ export class InstitutionContextService {
 
     if (user.institutionId) {
       const institution = await this.institutionRepository.findOne({
-        where: { prefix: user.institutionId },
+        where: { id: user.institutionId },
       });
 
       if (institution) {
@@ -62,15 +62,14 @@ export class InstitutionContextService {
       return institution;
     }
 
-    // Check for institution relation
-    if (!authUser.institution?.prefix) {
+    if (!authUser.institution?.id) {
       throw new ForbiddenException(
         'User account is not linked to an institution',
       );
     }
 
     const institution = await this.institutionRepository.findOne({
-      where: { prefix: authUser.institution.prefix },
+      where: { id: authUser.institution.id },
     });
 
     if (!institution) {

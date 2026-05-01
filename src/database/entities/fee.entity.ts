@@ -43,7 +43,7 @@ export class FeeEntity {
   studentProfile: StudentProfileEntity;
 
   @ManyToOne(() => InstitutionEntity, { nullable: false })
-  @JoinColumn({ name: 'institutionPrefix', referencedColumnName: 'prefix' })
+  @JoinColumn({ name: 'institutionId' })
   institution: InstitutionEntity;
 
   @CreateDateColumn()

@@ -5,7 +5,7 @@ import {
   Entity,
   JoinColumn,
   OneToOne,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { AuthEntity } from './auth.entity';
@@ -13,7 +13,10 @@ import { FileEntity } from './file.entity';
 
 @Entity({ name: 'tbl_institution' })
 export class InstitutionEntity {
-  @PrimaryColumn()
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
   prefix: string;
 
   @Column()

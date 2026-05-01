@@ -28,7 +28,7 @@ import { AppwriteStorageService } from 'src/shared/services/appwrite-storage.ser
 type OwnerContextUser = {
   authId: number;
   role: string;
-  institutionId?: string | null;
+  institutionId?: number | null;
 };
 
 @Injectable()
@@ -109,21 +109,10 @@ export class InstitutionAdminService {
       }
     }
 
-    // Check if username already exists for this institution using composite key
-    const existingUser = await this.authRepository.findOne({
-      where: {
-        username: username,
-        institution: { prefix: institution.prefix },
-      },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('Username already exists');
-    }
-
-    // Hash password
+    // Hash password early (used below and for potential restore)
     const hashedPassword = hashPassword(password);
 
+    // Prepare profile upload container early so it can be used during restore flow
     let uploadedProfileFile: FileEntity | undefined;
     if (profilePicture) {
       const maxFileSize = 5 * 1024 * 1024;
@@ -153,10 +142,65 @@ export class InstitutionAdminService {
       }
     }
 
+    // Check if username already exists for this institution using composite key (include soft-deleted)
+    const existingUser = await this.authRepository.findOne({
+      where: {
+        username: username,
+        institution: { id: institution.id },
+      },
+      withDeleted: true,
+    });
+
+    if (existingUser) {
+      // If the existing record was soft-deleted, attempt to restore and update it instead
+      if (existingUser.deletedAt) {
+        try {
+          existingUser.password = hashedPassword;
+          if (email) existingUser.email = email;
+          existingUser.name = name;
+          existingUser.isActive = true;
+          existingUser.role = UserRoles.INSTITUTION_ADMIN;
+          if (uploadedProfileFile) {
+            existingUser.profilePictureFile = {
+              id: uploadedProfileFile.id,
+            } as FileEntity;
+          }
+
+          const restored = await this.authRepository.recover(existingUser);
+          await this.authRepository.save(existingUser);
+
+          return {
+            id: restored.id,
+            email: restored.email,
+            username: restored.username,
+            name: restored.name,
+            role: restored.role,
+            isActive: restored.isActive,
+            createdAt: restored.createdAt,
+          };
+        } catch (error) {
+          if (uploadedProfileFile) {
+            try {
+              await this.appwriteStorageService.deleteFile(
+                uploadedProfileFile.fileId,
+              );
+              await this.fileRepository.delete(uploadedProfileFile.id);
+            } catch {}
+          }
+
+          throw new InternalServerErrorException(
+            'Failed to restore existing deleted user',
+          );
+        }
+      }
+
+      throw new ConflictException('Username already exists');
+    }
+
     // Create new institution admin user
     const newInstitutionAdmin = this.authRepository.create({
       username: username,
-      institution: { prefix: institution.prefix },
+      institution: { id: institution.id },
       ...(email && { email }),
       password: hashedPassword,
       name,
@@ -223,7 +267,7 @@ export class InstitutionAdminService {
       where: {
         id: institutionAdminId,
         role: UserRoles.INSTITUTION_ADMIN,
-        institution: { prefix: institution?.prefix },
+        institution: { id: institution?.id },
       },
     });
 
@@ -504,7 +548,7 @@ export class InstitutionAdminService {
       where: [
         {
           ...where,
-          institution: { prefix: user?.institutionId },
+          institution: { id: user?.institutionId },
         },
       ],
       relations: ['profilePictureFile'],
@@ -542,35 +586,19 @@ export class InstitutionAdminService {
   }
 
   async delete(institutionAdminId: number, user: OwnerContextUser) {
-    // Verify the owner has an institution
-    const institution = await this.getOwnerInstitution(
-      user,
-      'You must have an institution to delete institution admins',
-    );
-
-    if (!institution) {
-      throw new NotFoundException(
-        'You must have an institution to delete institution admins',
-      );
-    }
-
     // Find the institution admin
+    if (!user?.institutionId)
+      throw new BadRequestException('Institution id not found');
     const institutionAdmin = await this.authRepository.findOne({
       where: {
         id: institutionAdminId,
         role: UserRoles.INSTITUTION_ADMIN,
+        institution: { id: user?.institutionId },
       },
     });
 
     if (!institutionAdmin) {
       throw new NotFoundException('Institution admin not found');
-    }
-
-    // Verify institution admin username starts with institution prefix (belongs to this institution)
-    if (!institutionAdmin.username.startsWith(`${institution.prefix}_`)) {
-      throw new NotFoundException(
-        'Institution admin does not belong to your institution',
-      );
     }
 
     try {
@@ -607,16 +635,16 @@ export class InstitutionAdminService {
     user: OwnerContextUser,
     notFoundMessage: string,
   ) {
-    const institutionId: string | null | undefined = user.institutionId;
+    const institutionId: number | null | undefined = user.institutionId;
 
-    if (typeof institutionId === 'string' && institutionId.length > 0) {
+    if (typeof institutionId === 'number' && institutionId > 0) {
       const where: FindOptionsWhere<InstitutionEntity> =
         user.role === UserRoles.INSTITUTION_OWNER
           ? {
-              prefix: institutionId,
+              id: institutionId,
               owner: { id: user.authId },
             }
-          : { prefix: institutionId };
+          : { id: institutionId };
 
       const institutionByToken = await this.institutionRepository.findOne({
         where,

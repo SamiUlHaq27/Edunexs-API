@@ -27,7 +27,7 @@ export class AuthEntity {
   username: string;
 
   @ManyToOne(() => InstitutionEntity)
-  @JoinColumn({ name: 'institutionPrefix', referencedColumnName: 'prefix' })
+  @JoinColumn({ name: 'institutionId' })
   institution?: InstitutionEntity;
 
   @Column()

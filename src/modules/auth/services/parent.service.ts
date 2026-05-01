@@ -102,7 +102,7 @@ export class ParentService {
     const existingParent = await this.authRepository.findOne({
       where: {
         username,
-        institution: { prefix: user.institutionId },
+        institution: { id: user.institutionId },
         role: UserRoles.PARENT,
       },
     });
@@ -117,7 +117,7 @@ export class ParentService {
     const studentProfiles = await this.studentProfileRepository.find({
       where: {
         id: In(normalizedStudentProfileIds),
-        institution: { prefix: user.institutionId },
+        institution: { id: user.institutionId },
       },
       relations: ['student', 'institution'],
     });
@@ -152,7 +152,7 @@ export class ParentService {
         password: hashPassword(password),
         name,
         role: UserRoles.PARENT,
-        institution: { prefix: user.institutionId } as any,
+        institution: { id: user.institutionId } as any,
         isActive: isEnabled ?? true,
       });
 
@@ -212,7 +212,7 @@ export class ParentService {
 
     const [parents, total] = await this.authRepository.findAndCount({
       where: {
-        institution: { prefix: user.institutionId },
+        institution: { id: user.institutionId },
         role: UserRoles.PARENT,
       },
       skip,
@@ -264,7 +264,7 @@ export class ParentService {
     const parent = await this.authRepository.findOne({
       where: {
         id: parentId,
-        institution: { prefix: user.institutionId },
+        institution: { id: user.institutionId },
         role: UserRoles.PARENT,
       },
     });
@@ -308,7 +308,7 @@ export class ParentService {
     const parent = await this.authRepository.findOne({
       where: {
         id: parentId,
-        institution: { prefix: user.institutionId },
+        institution: { id: user.institutionId },
         role: UserRoles.PARENT,
       },
     });
@@ -347,7 +347,7 @@ export class ParentService {
     const parent = await this.authRepository.findOne({
       where: {
         id: parentId,
-        institution: { prefix: user.institutionId },
+        institution: { id: user.institutionId },
         role: UserRoles.PARENT,
       },
     });
@@ -360,7 +360,7 @@ export class ParentService {
     const studentProfiles = await this.studentProfileRepository.find({
       where: {
         id: In(normalizedStudentProfileIds),
-        institution: { prefix: user.institutionId },
+        institution: { id: user.institutionId },
       },
     });
 
@@ -454,7 +454,7 @@ export class ParentService {
     const parent = await this.authRepository.findOne({
       where: {
         id: parentId,
-        institution: { prefix: user.institutionId },
+        institution: { id: user.institutionId },
         role: UserRoles.PARENT,
       },
     });
@@ -500,7 +500,7 @@ export class ParentService {
     const parent = await this.authRepository.findOne({
       where: {
         id: parentId,
-        institution: { prefix: user.institutionId },
+        institution: { id: user.institutionId },
         role: UserRoles.PARENT,
       },
     });
@@ -562,7 +562,7 @@ export class ParentService {
     const studentProfile = await this.studentProfileRepository.findOne({
       where: {
         student: { id: studentId },
-        institution: { prefix: user?.institutionId },
+        institution: { id: user?.institutionId },
       },
       relations: ['student', 'institution'],
     });
@@ -621,7 +621,7 @@ export class ParentService {
     const studentProfile = await this.studentProfileRepository.findOne({
       where: {
         student: { id: studentId },
-        institution: { prefix: user?.institutionId },
+        institution: { id: user?.institutionId },
       },
       relations: ['student', 'institution'],
     });

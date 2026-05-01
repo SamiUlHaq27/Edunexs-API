@@ -31,7 +31,7 @@ export class StudentProfileEntity {
   student: AuthEntity;
 
   @ManyToOne(() => InstitutionEntity, { nullable: false })
-  @JoinColumn({ name: 'institutionPrefix', referencedColumnName: 'prefix' })
+  @JoinColumn({ name: 'institutionId' })
   institution: InstitutionEntity;
 
   @ManyToMany(() => StudentGroupEntity, (studentGroup) => studentGroup.students)
