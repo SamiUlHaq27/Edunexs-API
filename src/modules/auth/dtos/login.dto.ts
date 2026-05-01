@@ -1,4 +1,5 @@
-import { Transform, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   IsEmail,
   IsInt,
@@ -13,6 +14,12 @@ export class LoginDto {
   @ValidateIf((o: LoginDto) => !o.email)
   @IsString()
   username?: string;
+
+ @Transform(({ value }) => `${value}`?.toUpperCase())
+  @ValidateIf((o: LoginDto) => !!o.username)
+  @IsOptional()
+  @IsString()
+  institutionPrefix?: string;
 
   @ValidateIf((o: LoginDto) => !!o.username)
   @IsOptional()

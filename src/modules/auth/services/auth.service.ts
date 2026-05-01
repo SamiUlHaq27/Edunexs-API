@@ -285,7 +285,8 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const { username, institutionId, email, password } = loginDto;
+    const { username, institutionPrefix, institutionId, email, password } =
+      loginDto;
 
     // Validate that at least username or email is provided
     if (!username && !email) {
@@ -297,18 +298,21 @@ export class AuthService {
     let user: AuthEntity | null = null;
 
     if (username) {
-      // Username login requires institution prefix
-      // Username login requires institution id
-      if (!institutionId) {
+      // Username login requires institution context; prefer prefix.
+      if (!institutionPrefix && !institutionId) {
         throw new BadRequestException(
-          'Institution id is required for username login',
+          'Institution prefix is required for username login',
         );
       }
+
+      const normalizedPrefix = institutionPrefix?.trim().toUpperCase();
 
       user = await this.authRepository.findOne({
         where: {
           username: username,
-          institution: { id: institutionId },
+          institution: normalizedPrefix
+            ? { prefix: normalizedPrefix }
+            : { id: institutionId },
         },
         relations: ['profilePictureFile', 'institution'],
       });
