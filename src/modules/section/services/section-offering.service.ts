@@ -52,15 +52,15 @@ export class SectionOfferingService {
 
     const sectionEntity = await this.getSectionInInstitution(
       createSectionOfferingDto.sectionId,
-      managerInstitution.prefix,
+      managerInstitution.id,
     );
     const course = await this.getCourseInInstitution(
       createSectionOfferingDto.courseId,
-      managerInstitution.prefix,
+      managerInstitution.id,
     );
     const teacher = await this.getTeacherInInstitution(
       createSectionOfferingDto.teacherId,
-      managerInstitution.prefix,
+      managerInstitution.id,
     );
 
     const existingOffering = await this.sectionOfferingRepository.findOne({
@@ -78,7 +78,7 @@ export class SectionOfferingService {
     }
 
     const students = await this.getResolvedStudentProfiles(
-      managerInstitution.prefix,
+      managerInstitution.id,
       createSectionOfferingDto.studentProfileIds,
       createSectionOfferingDto.studentGroupIds,
     );
