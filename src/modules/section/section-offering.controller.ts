@@ -18,6 +18,13 @@ export class SectionOfferingController {
   ) {}
 
   @Version('1')
+  @AllowedRoles([UserRoles.STUDENT])
+  @Post('student-dashboard-summary')
+  async getStudentDashboardSummary(@User() user: UserData) {
+    return await this.sectionOfferingService.getStudentDashboardSummary(user);
+  }
+
+  @Version('1')
   @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
   @Post()
   async createSectionOffering(
