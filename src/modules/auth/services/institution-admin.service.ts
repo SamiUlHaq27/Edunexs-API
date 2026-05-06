@@ -585,6 +585,20 @@ export class InstitutionAdminService {
     };
   }
 
+  async count(user: OwnerContextUser) {
+    if (!user?.institutionId)
+      throw new NotFoundException('Unable to find your institution');
+
+    const total = await this.authRepository.count({
+      where: {
+        role: UserRoles.INSTITUTION_ADMIN,
+        institution: { id: user.institutionId },
+      },
+    });
+
+    return { total };
+  }
+
   async delete(institutionAdminId: number, user: OwnerContextUser) {
     // Find the institution admin
     if (!user?.institutionId)

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   Post,
   Put,
   UploadedFile,
@@ -56,6 +57,13 @@ export class InstitutionAdminController {
     @User() user: UserData,
   ) {
     return await this.institutionAdminService.findAll(user, listFiltersDto);
+  }
+
+  @Version('1')
+  @AllowedRoles([UserRoles.INSTITUTION_ADMIN, UserRoles.INSTITUTION_OWNER])
+  @Get('count')
+  async count(@User() user: UserData) {
+    return await this.institutionAdminService.count(user);
   }
 
   @Version('1')
