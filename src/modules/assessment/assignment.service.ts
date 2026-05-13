@@ -798,6 +798,82 @@ export class AssignmentService {
     };
   }
 
+  async deleteTeacherAssignment(
+    assignmentId: number,
+    user: UserData,
+    hard = false,
+  ) {
+    const assignment = await this.getTeacherOwnedAssignment(assignmentId, user);
+
+    if (!hard) {
+      // Soft-delete: mark inactive
+      assignment.isActive = false;
+      await this.assignmentRepository.save(assignment);
+      return { message: 'Assignment archived successfully', assignmentId };
+    }
+
+    // Hard delete: remove attachments, submission files, grades and the assignment record
+    const attachments = await this.assignmentAttachmentRepository.find({
+      where: { assignment: { id: assignmentId } },
+      relations: ['file'],
+    });
+
+    for (const att of attachments) {
+      const appwriteFileId = att.file?.fileId;
+      if (appwriteFileId) {
+        try {
+          await this.appwriteStorageService.deleteFile(appwriteFileId);
+        } catch (error) {
+          // Continue even if storage delete fails
+        }
+      }
+      if (att.file?.id) {
+        await this.fileRepository.delete(att.file.id);
+      }
+    }
+
+    await this.assignmentAttachmentRepository.delete({
+      assignment: { id: assignmentId },
+    });
+
+    const submissions = await this.assignmentSubmissionRepository.find({
+      where: { assignment: { id: assignmentId } },
+      relations: ['submittedFile'],
+    });
+
+    for (const sub of submissions) {
+      const appwriteFileId = sub.submittedFile?.fileId;
+      if (appwriteFileId) {
+        try {
+          await this.appwriteStorageService.deleteFile(appwriteFileId);
+        } catch (error) {
+          // Continue
+        }
+      }
+      if (sub.submittedFile?.id) {
+        await this.fileRepository.delete(sub.submittedFile.id);
+      }
+    }
+
+    await this.assignmentSubmissionRepository.delete({
+      assignment: { id: assignmentId },
+    });
+
+    // Delete grades associated with this assignment
+    await this.gradeRepository.delete({
+      assessmentId: assignmentId,
+      gradeType: GradeTypes.ASSIGNMENT,
+    });
+
+    // Finally remove assignment
+    await this.assignmentRepository.remove(assignment);
+
+    return {
+      message: 'Assignment and associated data deleted successfully',
+      assignmentId,
+    };
+  }
+
   async removeSubmission(assignmentId: number, user: UserData) {
     const studentProfile = await this.getStudentProfileForUser(user.authId);
 

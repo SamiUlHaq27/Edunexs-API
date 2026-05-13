@@ -19,6 +19,7 @@ import { In, Repository } from 'typeorm';
 import {
   CreateCustomGradeDto,
   CreateCustomGradesDto,
+  DeleteTeacherGradeDto,
   TeacherGradebookDto,
   TeacherStudentGradesDto,
   UpdateTeacherGradeDto,
@@ -169,28 +170,30 @@ export class TeacherGradebookService {
       offering.id,
     );
 
-    const [assignments, quizzes, grades, customDefinitions] = await Promise.all([
-      this.assignmentRepository.find({
-        where: { sectionOffering: { id: offering.id } },
-      }),
-      this.quizRepository.find({
-        where: { sectionOffering: { id: offering.id } },
-      }),
-      this.gradeRepository.find({
-        where: {
-          sectionOffering: { id: offering.id },
-          studentProfile: { id: studentProfile.id },
-        },
-        relations: ['studentProfile', 'gradedByTeacher'],
-        order: { updatedAt: 'DESC' },
-      }),
-      this.customGradeRepository.find({
-        where: {
-          sectionOffering: { id: offering.id },
-        },
-        order: { updatedAt: 'DESC' },
-      }),
-    ]);
+    const [assignments, quizzes, grades, customDefinitions] = await Promise.all(
+      [
+        this.assignmentRepository.find({
+          where: { sectionOffering: { id: offering.id } },
+        }),
+        this.quizRepository.find({
+          where: { sectionOffering: { id: offering.id } },
+        }),
+        this.gradeRepository.find({
+          where: {
+            sectionOffering: { id: offering.id },
+            studentProfile: { id: studentProfile.id },
+          },
+          relations: ['studentProfile', 'gradedByTeacher'],
+          order: { updatedAt: 'DESC' },
+        }),
+        this.customGradeRepository.find({
+          where: {
+            sectionOffering: { id: offering.id },
+          },
+          order: { updatedAt: 'DESC' },
+        }),
+      ],
+    );
 
     const assignmentById = new Map<number, AssignmentEntity>();
     for (const assignment of assignments)
@@ -568,6 +571,30 @@ export class TeacherGradebookService {
     return this.updateTeacherGrade(dto, user);
   }
 
+  async deleteTeacherGrade(dto: DeleteTeacherGradeDto, user: UserData) {
+    const grade = await this.gradeRepository.findOne({
+      where: {
+        id: dto.gradeId,
+        gradeType: GradeTypes.CUSTOM,
+        sectionOffering: { teacher: { id: user.authId } },
+      },
+      relations: ['studentProfile', 'sectionOffering'],
+    });
+
+    if (!grade) {
+      throw new NotFoundException('Custom grade not found for this teacher');
+    }
+
+    await this.gradeRepository.remove(grade);
+
+    return {
+      message: 'Custom grade deleted successfully',
+      gradeId: dto.gradeId,
+      studentProfileId: grade.studentProfile?.id ?? null,
+      offeringId: grade.sectionOffering?.id ?? null,
+    };
+  }
+
   private async getTeacherOwnedOffering(offeringId: number, user: UserData) {
     const offering = await this.sectionOfferingRepository.findOne({
       where: {
@@ -641,9 +668,7 @@ export class TeacherGradebookService {
       const customGrade = customDefinitionById.get(grade.assessmentId);
       if (!customGrade || Number(customGrade.maxGrade) <= 0) return null;
       return Number(
-        ((Number(grade.score) / Number(customGrade.maxGrade)) * 100).toFixed(
-          2,
-        ),
+        ((Number(grade.score) / Number(customGrade.maxGrade)) * 100).toFixed(2),
       );
     }
 
@@ -813,7 +838,10 @@ export class TeacherGradebookService {
       title: customGrade.title,
       score: Number(grade.score),
       maxGrade,
-      percentage: maxGrade > 0 ? Number(((Number(grade.score) / maxGrade) * 100).toFixed(2)) : null,
+      percentage:
+        maxGrade > 0
+          ? Number(((Number(grade.score) / maxGrade) * 100).toFixed(2))
+          : null,
       feedback: grade.feedback ?? null,
       gradedAt: grade.updatedAt,
     };
