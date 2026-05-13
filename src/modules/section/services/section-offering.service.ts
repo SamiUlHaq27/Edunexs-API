@@ -8,12 +8,18 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   AuthEntity,
+  AssignmentEntity,
+  AssignmentSubmissionEntity,
+  AttendanceEntity,
   CourseEntity,
+  QuizAttemptEntity,
+  QuizEntity,
   SectionEntity,
   SectionOfferingEntity,
   StudentGroupEntity,
   StudentProfileEntity,
 } from 'src/database/entities';
+import { AttendanceStatus } from 'src/database/entities/attendance.entity';
 import { UserRoles } from 'src/shared/consts';
 import { ListFiltersDto } from 'src/shared/dtos/list_filter.dto';
 import { InstitutionContextService } from 'src/shared/services';
@@ -24,6 +30,35 @@ import {
   DeleteSectionOfferingDto,
   UpdateSectionOfferingDto,
 } from '../dtos';
+
+interface SectionOfferingSummary {
+  id: number;
+  sectionId?: number;
+  sectionName?: string;
+  courseId?: number;
+  courseCode?: string;
+  courseTitle?: string;
+  teacherId?: number;
+  teacherName?: string;
+  teacherUsername?: string;
+  institutionPrefix?: string;
+  isActive: boolean;
+  studentProfileIds: number[];
+  studentIds: number[];
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+interface StudentDashboardCourseSummary extends SectionOfferingSummary {
+  pendingAssignments: number;
+  pendingQuizzes: number;
+  attendancePercentage: number;
+}
+
+interface StudentDashboardSummaryResponse {
+  activeCourses: StudentDashboardCourseSummary[];
+  previousCourses: SectionOfferingSummary[];
+}
 
 @Injectable()
 export class SectionOfferingService {
@@ -40,8 +75,66 @@ export class SectionOfferingService {
     private readonly studentProfileRepository: Repository<StudentProfileEntity>,
     @InjectRepository(StudentGroupEntity)
     private readonly studentGroupRepository: Repository<StudentGroupEntity>,
+    @InjectRepository(AssignmentEntity)
+    private readonly assignmentRepository: Repository<AssignmentEntity>,
+    @InjectRepository(AssignmentSubmissionEntity)
+    private readonly assignmentSubmissionRepository: Repository<AssignmentSubmissionEntity>,
+    @InjectRepository(QuizEntity)
+    private readonly quizRepository: Repository<QuizEntity>,
+    @InjectRepository(QuizAttemptEntity)
+    private readonly quizAttemptRepository: Repository<QuizAttemptEntity>,
+    @InjectRepository(AttendanceEntity)
+    private readonly attendanceRepository: Repository<AttendanceEntity>,
     private readonly institutionContextService: InstitutionContextService,
   ) {}
+
+  async getStudentDashboardSummary(
+    user: UserData,
+  ): Promise<StudentDashboardSummaryResponse> {
+    const studentProfile = await this.studentProfileRepository.findOne({
+      where: { student: { id: user.authId, role: UserRoles.STUDENT } },
+      relations: ['student', 'sectionOfferings'],
+    });
+
+    if (!studentProfile) {
+      throw new NotFoundException('Student profile not found');
+    }
+
+    const offeringIds = (studentProfile.sectionOfferings || []).map(
+      (offering) => offering.id,
+    );
+
+    if (offeringIds.length === 0) {
+      return {
+        activeCourses: [],
+        previousCourses: [],
+      };
+    }
+
+    const offerings = await this.sectionOfferingRepository.find({
+      where: { id: In(offeringIds) },
+      relations: ['section', 'section.institution', 'course', 'teacher'],
+      order: { createdAt: 'DESC' },
+    });
+
+    const activeOfferings = offerings.filter((offering) => offering.isActive);
+    const previousOfferings = offerings.filter(
+      (offering) => !offering.isActive,
+    );
+
+    const activeCourses = await Promise.all(
+      activeOfferings.map((offering) =>
+        this.buildDashboardCourseSummary(offering, studentProfile.id),
+      ),
+    );
+
+    return {
+      activeCourses,
+      previousCourses: previousOfferings.map((offering) =>
+        this.buildOfferingResponse(offering),
+      ),
+    };
+  }
 
   async createSectionOffering(
     createSectionOfferingDto: CreateSectionOfferingDto,
@@ -52,15 +145,15 @@ export class SectionOfferingService {
 
     const sectionEntity = await this.getSectionInInstitution(
       createSectionOfferingDto.sectionId,
-      managerInstitution.prefix,
+      managerInstitution.id,
     );
     const course = await this.getCourseInInstitution(
       createSectionOfferingDto.courseId,
-      managerInstitution.prefix,
+      managerInstitution.id,
     );
     const teacher = await this.getTeacherInInstitution(
       createSectionOfferingDto.teacherId,
-      managerInstitution.prefix,
+      managerInstitution.id,
     );
 
     const existingOffering = await this.sectionOfferingRepository.findOne({
@@ -78,7 +171,7 @@ export class SectionOfferingService {
     }
 
     const students = await this.getResolvedStudentProfiles(
-      managerInstitution.prefix,
+      managerInstitution.id,
       createSectionOfferingDto.studentProfileIds,
       createSectionOfferingDto.studentGroupIds,
     );
@@ -547,6 +640,93 @@ export class SectionOfferingService {
         offering.students?.map((student) => student.student?.id) || [],
       createdAt: offering.createdAt,
       updatedAt: offering.updatedAt,
+    };
+  }
+
+  private async buildDashboardCourseSummary(
+    offering: SectionOfferingEntity,
+    studentProfileId: number,
+  ): Promise<StudentDashboardCourseSummary> {
+    const [assignments, quizzes, attendanceRows] = await Promise.all([
+      this.assignmentRepository.find({
+        where: { sectionOffering: { id: offering.id }, isActive: true },
+      }),
+      this.quizRepository.find({
+        where: { sectionOffering: { id: offering.id }, isActive: true },
+      }),
+      this.attendanceRepository.find({
+        where: {
+          sectionOffering: { id: offering.id },
+          studentProfile: { id: studentProfileId },
+        },
+        select: ['status'],
+      }),
+    ]);
+
+    const assignmentIds = assignments.map((assignment) => assignment.id);
+    const quizIds = quizzes.map((quiz) => quiz.id);
+
+    const [submissions, attempts] = await Promise.all([
+      assignmentIds.length > 0
+        ? this.assignmentSubmissionRepository.find({
+            where: {
+              assignment: { id: In(assignmentIds) },
+              studentProfile: { id: studentProfileId },
+            },
+            relations: ['assignment'],
+          })
+        : Promise.resolve([]),
+      quizIds.length > 0
+        ? this.quizAttemptRepository.find({
+            where: {
+              quiz: { id: In(quizIds) },
+              studentProfile: { id: studentProfileId },
+            },
+            relations: ['quiz'],
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const submittedAssignmentIds = new Set(
+      submissions
+        .map((submission) => submission.assignment?.id)
+        .filter((value): value is number => typeof value === 'number'),
+    );
+
+    const attemptsByQuizId = new Map<number, number>();
+    for (const attempt of attempts) {
+      const quizId = attempt.quiz?.id;
+      if (!quizId) {
+        continue;
+      }
+
+      attemptsByQuizId.set(quizId, (attemptsByQuizId.get(quizId) || 0) + 1);
+    }
+
+    const now = new Date();
+    const pendingQuizzes = quizzes.filter((quiz) => {
+      const attemptsUsed = attemptsByQuizId.get(quiz.id) || 0;
+      return (
+        now >= quiz.startsAt &&
+        now <= quiz.endsAt &&
+        attemptsUsed < quiz.maxAttempts
+      );
+    }).length;
+
+    const presentCount = attendanceRows.filter(
+      (row) => row.status === AttendanceStatus.PRESENT,
+    ).length;
+    const totalMarked = attendanceRows.length;
+    const attendancePercentage =
+      totalMarked > 0
+        ? Number(((presentCount / totalMarked) * 100).toFixed(2))
+        : 0;
+
+    return {
+      ...this.buildOfferingResponse(offering),
+      pendingAssignments: assignments.length - submittedAssignmentIds.size,
+      pendingQuizzes,
+      attendancePercentage,
     };
   }
 }

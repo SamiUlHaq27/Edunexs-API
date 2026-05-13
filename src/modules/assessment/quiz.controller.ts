@@ -5,6 +5,7 @@ import { AllowedRoles } from 'src/shared/reflectors';
 import type { UserData } from 'src/shared/types';
 import {
   CreateQuizDto,
+  DeleteQuizDto,
   ListQuizAttemptsDto,
   ListStudentQuizGradesDto,
   StudentQuizDetailDto,
@@ -40,6 +41,16 @@ export class QuizController {
 
   @Version('1')
   @AllowedRoles([UserRoles.TEACHER])
+  @Post('teacher/delete')
+  async deleteQuiz(
+    @Body() deleteQuizDto: DeleteQuizDto,
+    @User() user: UserData,
+  ) {
+    return await this.quizService.deleteQuiz(deleteQuizDto.quizId, user);
+  }
+
+  @Version('1')
+  @AllowedRoles([UserRoles.TEACHER])
   @Post('teacher/all')
   async listTeacherQuizzes(
     @Body() listTeacherQuizzesDto: ListTeacherQuizzesDto,
@@ -68,7 +79,10 @@ export class QuizController {
     @Body() studentQuizDetailDto: StudentQuizDetailDto,
     @User() user: UserData,
   ) {
-    return await this.quizService.getStudentQuizDetail(studentQuizDetailDto, user);
+    return await this.quizService.getStudentQuizDetail(
+      studentQuizDetailDto,
+      user,
+    );
   }
 
   @Version('1')

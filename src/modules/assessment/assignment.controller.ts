@@ -87,6 +87,20 @@ export class AssignmentController {
   }
 
   @Version('1')
+  @AllowedRoles([UserRoles.TEACHER])
+  @Post('teacher/delete')
+  async deleteTeacherAssignment(
+    @Body() body: DeleteTeacherAssignmentDto,
+    @User() user: UserData,
+  ) {
+    return await this.assignmentService.deleteTeacherAssignment(
+      body.assignmentId,
+      user,
+      !!body.hard,
+    );
+  }
+
+  @Version('1')
   @AllowedRoles([UserRoles.STUDENT])
   @Post('student/all')
   async listStudentAssignments(

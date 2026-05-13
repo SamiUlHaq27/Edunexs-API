@@ -1,9 +1,14 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
+  AssignmentEntity,
+  AssignmentSubmissionEntity,
+  AttendanceEntity,
   AuthEntity,
   CourseEntity,
   InstitutionEntity,
+  QuizAttemptEntity,
+  QuizEntity,
   SectionEntity,
   SectionOfferingEntity,
   StudentGroupEntity,
@@ -25,6 +30,11 @@ import { SectionService } from './services/section.service';
       InstitutionEntity,
       StudentProfileEntity,
       StudentGroupEntity,
+      AssignmentEntity,
+      AssignmentSubmissionEntity,
+      QuizEntity,
+      QuizAttemptEntity,
+      AttendanceEntity,
     ]),
   ],
   controllers: [SectionController, SectionOfferingController],
