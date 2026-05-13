@@ -25,7 +25,7 @@ export class StudentGroupEntity {
   isActive: boolean;
 
   @ManyToOne(() => InstitutionEntity, { nullable: false })
-  @JoinColumn({ name: 'institutionPrefix', referencedColumnName: 'prefix' })
+  @JoinColumn({ name: 'institutionId' })
   institution: InstitutionEntity;
 
   @ManyToMany(

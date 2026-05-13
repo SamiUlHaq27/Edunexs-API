@@ -1,9 +1,13 @@
 import { IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class ParentLoginDto {
-  @IsString()
   @IsOptional()
-  institutionPrefix?: string;
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  institutionId?: number;
 
   @IsString()
   @IsOptional()

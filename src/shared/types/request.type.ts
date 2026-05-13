@@ -7,6 +7,6 @@ export type UserData = {
   authId: number;
   username: string;
   role: UserRolesType;
-  institutionId?: string | null;
+  institutionId?: number | null;
   studentProfileId?: number | null;
 };

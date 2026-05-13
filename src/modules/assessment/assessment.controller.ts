@@ -6,6 +6,7 @@ import type { UserData } from 'src/shared/types';
 import {
   CreateCustomGradeDto,
   CreateCustomGradesDto,
+  DeleteTeacherGradeDto,
   ListStudentGradeReportDto,
   TeacherGradebookDto,
   TeacherStudentGradesDto,
@@ -79,5 +80,15 @@ export class AssessmentController {
     @User() user: UserData,
   ) {
     return this.teacherGradebookService.updateTeacherGrade(dto, user);
+  }
+
+  @Version('1')
+  @AllowedRoles([UserRoles.TEACHER])
+  @Post('teacher/grade/delete')
+  async deleteTeacherGrade(
+    @Body() dto: DeleteTeacherGradeDto,
+    @User() user: UserData,
+  ) {
+    return this.teacherGradebookService.deleteTeacherGrade(dto, user);
   }
 }

@@ -44,7 +44,7 @@ export class TeacherService {
     const existingUser = await this.authRepository.findOne({
       where: {
         username,
-        institution: { prefix: managerInstitution.prefix },
+        institution: { id: managerInstitution.id },
       },
     });
 
@@ -85,7 +85,7 @@ export class TeacherService {
 
     const newTeacher = this.authRepository.create({
       username,
-      institution: { prefix: managerInstitution.prefix },
+      institution: { id: managerInstitution.id },
       password: hashPassword(password),
       name,
       role: UserRoles.TEACHER,
@@ -136,7 +136,7 @@ export class TeacherService {
 
     const where: FindOptionsWhere<AuthEntity> = {
       role: UserRoles.TEACHER,
-      institution: { prefix: managerInstitution.prefix },
+      institution: { id: managerInstitution.id },
     };
 
     if (filters && typeof filters === 'object') {
@@ -180,7 +180,9 @@ export class TeacherService {
       isActive: teacher.isActive,
       recoveryEmail: teacher.email,
       profilePictureFileId: teacher.profilePictureFile?.id,
-      profilePicture: this.buildProfilePictureResponse(teacher.profilePictureFile),
+      profilePicture: this.buildProfilePictureResponse(
+        teacher.profilePictureFile,
+      ),
       institutionPrefix: managerInstitution.prefix,
       createdAt: teacher.createdAt,
       updatedAt: teacher.updatedAt,
@@ -209,7 +211,7 @@ export class TeacherService {
       where: {
         id: teacherId,
         role: UserRoles.TEACHER,
-        institution: { prefix: managerInstitution.prefix },
+        institution: { id: managerInstitution.id },
       },
       relations: ['profilePictureFile'],
     });
@@ -224,7 +226,7 @@ export class TeacherService {
       const existingUser = await this.authRepository.findOne({
         where: {
           username,
-          institution: { prefix: managerInstitution.prefix },
+          institution: { id: managerInstitution.id },
         },
       });
 
@@ -307,7 +309,7 @@ export class TeacherService {
       where: {
         id: deleteTeacherDto.teacherId,
         role: UserRoles.TEACHER,
-        institution: { prefix: managerInstitution.prefix },
+        institution: { id: managerInstitution.id },
       },
     });
 
@@ -370,10 +372,7 @@ export class TeacherService {
     return normalizedSeed || 'user';
   }
 
-  private async generateUniqueUsername(
-    institutionPrefix: string,
-    name: string,
-  ) {
+  private async generateUniqueUsername(institutionId: number, name: string) {
     const normalizedSeed = this.normalizeUsernameSeed(name);
     let counter = 0;
 
@@ -384,7 +383,7 @@ export class TeacherService {
       const existingUser = await this.authRepository.findOne({
         where: {
           username: usernameCandidate,
-          institution: { prefix: institutionPrefix },
+          institution: { id: institutionId },
         },
       });
 

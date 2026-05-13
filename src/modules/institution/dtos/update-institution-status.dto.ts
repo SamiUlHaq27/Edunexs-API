@@ -1,15 +1,16 @@
 import {
   IsBoolean,
+  IsInt,
   IsString,
   MinLength,
   MaxLength,
-  Length,
+  Min,
 } from 'class-validator';
 
 export class UpdateInstitutionStatusDto {
-  @IsString()
-  @Length(2, 10)
-  prefix: string;
+  @IsInt()
+  @Min(1)
+  institutionId: number;
 
   @IsBoolean()
   isBlocked: boolean;

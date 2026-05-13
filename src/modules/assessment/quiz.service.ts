@@ -136,6 +136,37 @@ export class QuizService {
     };
   }
 
+  async deleteQuiz(quizId: number, user: UserData) {
+    const quiz = await this.getTeacherOwnedQuiz(quizId, user);
+
+    const grades = await this.gradeRepository.find({
+      where: {
+        gradeType: GradeTypes.QUIZ,
+        assessmentId: quiz.id,
+      },
+      relations: ['studentProfile'],
+    });
+
+    if (grades.length > 0) {
+      await this.gradeRepository.remove(grades);
+    }
+
+    const attempts = await this.quizAttemptRepository.find({
+      where: { quiz: { id: quiz.id } },
+    });
+
+    if (attempts.length > 0) {
+      await this.quizAttemptRepository.remove(attempts);
+    }
+
+    await this.quizRepository.remove(quiz);
+
+    return {
+      message: 'Quiz and associated grades deleted successfully',
+      quizId,
+    };
+  }
+
   async listTeacherQuizzes(
     listTeacherQuizzesDto: ListTeacherQuizzesDto,
     user: UserData,

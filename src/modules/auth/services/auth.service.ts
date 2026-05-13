@@ -285,7 +285,8 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const { username, institutionPrefix, email, password } = loginDto;
+    const { username, institutionPrefix, institutionId, email, password } =
+      loginDto;
 
     // Validate that at least username or email is provided
     if (!username && !email) {
@@ -297,17 +298,21 @@ export class AuthService {
     let user: AuthEntity | null = null;
 
     if (username) {
-      // Username login requires institution prefix
-      if (!institutionPrefix) {
+      // Username login requires institution context; prefer prefix.
+      if (!institutionPrefix && !institutionId) {
         throw new BadRequestException(
           'Institution prefix is required for username login',
         );
       }
 
+      const normalizedPrefix = institutionPrefix?.trim().toUpperCase();
+
       user = await this.authRepository.findOne({
         where: {
           username: username,
-          institution: { prefix: institutionPrefix },
+          institution: normalizedPrefix
+            ? { prefix: normalizedPrefix }
+            : { id: institutionId },
         },
         relations: ['profilePictureFile', 'institution'],
       });
@@ -359,7 +364,7 @@ export class AuthService {
       authId: user.id,
       username: user.email,
       role: user.role,
-      institutionId: user?.institution?.prefix,
+      institutionId: user?.institution?.id ?? null,
       ...(user.role === UserRoles.PARENT && {
         studentProfileId: defaultStudentProfileId,
       }),
@@ -377,7 +382,7 @@ export class AuthService {
           user?.profilePictureFile,
         ),
         role: user?.role,
-        institutionId: user?.institution?.prefix,
+        institutionId: user?.institution?.id ?? null,
         ...(user?.role === UserRoles.PARENT && {
           studentProfileId: defaultStudentProfileId,
           linkedStudentIds,
@@ -389,22 +394,18 @@ export class AuthService {
   }
 
   async parentLogin(parentLoginDto: ParentLoginDto) {
-    const { username, institutionPrefix, password } = parentLoginDto;
-
-    // Support two flows:
-    // 1. New flow: institutionPrefix + username (explicit)
-    // 2. Legacy flow: username with prefix (e.g., "inst_username")
+    const { username, institutionId, password } = parentLoginDto;
 
     let parentAuth: AuthEntity | null = null;
     let linkedStudentIds: number[] = [];
 
-    if (institutionPrefix && username) {
-      // New flow: explicit institution prefix and username
+    if (institutionId && username) {
+      // Explicit institution id and username
       parentAuth = await this.authRepository.findOne({
         where: {
           username,
           role: UserRoles.PARENT,
-          institution: { prefix: institutionPrefix },
+          institution: { id: institutionId },
         },
         relations: ['institution'],
       });
@@ -416,33 +417,6 @@ export class AuthService {
           relations: ['studentProfile'],
         });
         linkedStudentIds = links.map((link) => link.studentProfile.id);
-      }
-    } else if (username && !institutionPrefix) {
-      // Legacy flow: parse username like "inst_username"
-      const underscoreIndex = username.indexOf('_');
-
-      if (underscoreIndex > 0 && underscoreIndex < username.length - 1) {
-        const parsedPrefix = username.slice(0, underscoreIndex);
-        const localUsername = username.slice(underscoreIndex + 1);
-
-        // First try new model (AuthEntity with PARENT role)
-        parentAuth = await this.authRepository.findOne({
-          where: {
-            username: localUsername,
-            role: UserRoles.PARENT,
-            institution: { prefix: parsedPrefix },
-          },
-          relations: ['institution'],
-        });
-
-        if (parentAuth) {
-          // Fetch linked student profile IDs
-          const links = await this.parentStudentRepository.find({
-            where: { parent: { id: parentAuth.id } },
-            relations: ['studentProfile'],
-          });
-          linkedStudentIds = links.map((link) => link.studentProfile.id);
-        }
       }
     }
 
@@ -461,7 +435,7 @@ export class AuthService {
       authId: parentAuth.id,
       username: parentAuth.email || parentAuth.username,
       role: UserRoles.PARENT,
-      institutionId: parentAuth?.institution?.prefix,
+      institutionId: parentAuth?.institution?.id ?? null,
       studentProfileId: linkedStudentIds[0] ?? null,
     };
 
@@ -474,7 +448,7 @@ export class AuthService {
         username: parentAuth.username,
         name: parentAuth.name,
         role: UserRoles.PARENT,
-        institutionId: parentAuth.institution?.prefix,
+        institutionId: parentAuth.institution?.id ?? null,
         studentProfileId: linkedStudentIds[0] ?? null,
         linkedStudentIds: linkedStudentIds,
         isActive: parentAuth.isActive,
